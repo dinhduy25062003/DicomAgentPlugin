@@ -14,7 +14,7 @@ Service có quyền modify data; operator đọc ảnh/metadata và gọi IPC đ
 
 ## Windows MSI/EXE
 
-Scripts publish/install/uninstall đã có; **chưa tạo và ký installer MSI/EXE**. Quy trình đóng gói đề xuất:
+Đã tạo **NSIS Setup.exe**; hướng dẫn cài và build lại tại [PACKAGES.md](PACKAGES.md). Chưa ký số/chưa chạy thử installer trên Windows. MSI/WiX chưa tạo. Quy trình MSI/EXE khác nếu cần:
 
 1. Chạy `publish.ps1` trên CI Windows, lấy đủ host/desktop artifacts và native libraries.
 2. Dùng WiX Toolset 4/5 để author MSI: mỗi binary thành component, service cài dưới virtual account, automatic start; bảo vệ data bằng ACL tương đương `install.ps1`.
@@ -28,7 +28,7 @@ Lưu ý `sc.exe`/firewall/local-group APIs chỉ hoạt động Windows. Parse s
 
 ## Gói Debian `.deb`
 
-**Chưa build gói `.deb`**. Có thể dùng debhelper hoặc `dpkg-deb`:
+Đã build gói `.deb` bằng `deploy/linux/build-deb.sh`; xem [PACKAGES.md](PACKAGES.md). Các bước dưới đây là hướng dẫn mở rộng quy trình đóng gói:
 
 1. Publish linux-x64 self-contained trên môi trường build có dependencies phù hợp target distro.
 2. Package payload vào `/opt/dicom-agent/{host,desktop}`, unit vào `/lib/systemd/system/dicom-agent.service` theo distro. Binaries root-owned, không group/other write.

@@ -1,5 +1,7 @@
 # DICOM Desktop Agent
 
+Gói cài đặt **Windows Setup.exe** và **Ubuntu/Debian .deb**: xem [PACKAGES.md](docs/PACKAGES.md).
+
 Agent nhận ảnh qua mạng LAN, lưu Part 10 `.dcm` và lịch sử SQLite, chạy độc lập với website và Internet. Nhân viên mở thư mục, chọn file để upload website bằng tay. MVP không có tự động upload, DICOM viewer hoặc chuyển ảnh JPEG/PNG.
 
 ## Kiến trúc

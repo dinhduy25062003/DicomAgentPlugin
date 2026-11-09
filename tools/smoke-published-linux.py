@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-import os, tempfile, subprocess, socket, time, json, struct, sqlite3, hashlib
+import os, tempfile, subprocess, socket, time, json, struct, sqlite3, hashlib, argparse
 from pathlib import Path
 repo=Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser()
+parser.add_argument('--host', type=Path, default=repo/'publish/linux/host/DicomAgent.Host')
+args=parser.parse_args()
 scu=repo/'tools/DicomAgent.Scu/bin/Release/net8.0/DicomAgent.Scu.dll'
 def call_scu(*args):
     r=subprocess.run(['dotnet',str(scu),*map(str,args)],capture_output=True,text=True,timeout=40)
@@ -25,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix='dicom-published-') as directory:
     (data/'settings.json').write_text(json.dumps(settings))
     env=os.environ.copy();env['DICOM_AGENT_DATA']=str(data);env['DOTNET_ROOT']='/tmp/no-dotnet-runtime';env['DOTNET_BUNDLE_EXTRACT_BASE_DIR']=str(data/'bundle')
     with (data/'host.log').open('w') as log:
-        p=subprocess.Popen([str(repo/'publish/linux/host/DicomAgent.Host')],env=env,stdout=log,stderr=log)
+        p=subprocess.Popen([str(args.host.resolve())],env=env,stdout=log,stderr=log)
         try:
             for i in range(200):
                 assert p.poll() is None, (data/'host.log').read_text()

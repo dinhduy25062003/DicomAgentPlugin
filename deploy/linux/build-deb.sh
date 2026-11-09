@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 022
 cd "$(dirname "$0")/../.."
 version="${1:-0.1.0}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch' >&2; exit 1; }
 [[ -x publish/linux/host/DicomAgent.Host && -x publish/linux/desktop/DicomAgent.Desktop ]] || { echo 'Run deploy/linux/publish.sh first.' >&2; exit 1; }
+mkdir -p publish/installers
 stage="$(mktemp -d)"
-trap 'rm -rf "$stage"' EXIT
+artifact="$(mktemp publish/installers/.dicom-agent.XXXXXX.deb)"
+trap 'rm -rf "$stage"; rm -f "$artifact"' EXIT
+chmod 0755 "$stage"
 install -d "$stage/DEBIAN" "$stage/opt/dicom-agent/host" "$stage/opt/dicom-agent/desktop" "$stage/lib/systemd/system" "$stage/usr/bin" "$stage/usr/share/applications" "$stage/usr/share/icons/hicolor/scalable/apps" "$stage/usr/share/doc/dicom-agent"
 cp -a publish/linux/host/. "$stage/opt/dicom-agent/host/"
 cp -a publish/linux/desktop/. "$stage/opt/dicom-agent/desktop/"
@@ -39,5 +43,7 @@ EOF
 (cd "$stage"; find opt usr lib -type f -print0 | sort -z | xargs -0 md5sum > DEBIAN/md5sums)
 mkdir -p publish/installers
 output="$PWD/publish/installers/dicom-agent_${version}_amd64.deb"
-dpkg-deb --root-owner-group -Zxz -z6 --build "$stage" "$output"
+dpkg-deb --root-owner-group -Zxz -z6 --build "$stage" "$artifact"
+chmod 0644 "$artifact"
+mv -f "$artifact" "$output"
 echo "$output"

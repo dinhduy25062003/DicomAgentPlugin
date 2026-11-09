@@ -52,7 +52,7 @@ Domain ← Application ← Infrastructure; Host tham chiếu Application/Infrast
 | Desktop thao tác thủ công trên Windows/Linux | NOT RUN | Chỉ build/publish + headless XAML/binding |
 | Máy X-quang thật / máy LAN khác | NOT RUN | Networking tests dùng loopback và dữ liệu tổng hợp |
 | DICOM viewer độc lập | NOT RUN | File chỉ được đọc lại/so Pixel Data bằng fo-dicom |
-| MSI/EXE installer và .deb | NOT BUILT | Có hướng dẫn đóng gói; chưa tạo/ký/test package installer |
+| Installer EXE và .deb | BUILT | NSIS Setup.exe và deb amd64 0.1.0; chi tiết tại PACKAGES.md. Chưa ký số/chưa test cài/gỡ trên OS mục tiêu; MSI chưa tạo |
 | GitHub Actions matrix | Chỉ tạo workflow | Chưa push/chạy CI trên GitHub |
 
 Báo cáo TRX tại `tests/DicomAgent.UnitTests/TestResults/verification.trx` và `tests/DicomAgent.IntegrationTests/TestResults/verification.trx` (build artifacts bị gitignore).
@@ -92,6 +92,6 @@ Receiver C-ECHO/C-STORE; negotiation SOP/Transfer Syntax explicit; validation AE
 - Shutdown chờ tối đa khoảng 15 giây cho associations; vượt hạn có thể ngắt truyền và thiết bị cần retry. `.partial` sau crash giữ để phục hồi thủ công. Không cam kết chống mất điện/hỏng ổ đĩa.
 - DIMSE request timeout 30 giây không phải idle timeout tuyệt đối cho mọi association; đặt Receiver trên mạng được kiểm soát, giới hạn thiết bị qua firewall.
 - Không tự xóa ảnh, không mã hóa ổ đĩa/SQLite sẵn; BitLocker/LUKS và backup/retention là cấu hình vận hành của phòng khám.
-- Chưa tạo installer MSI/EXE/.deb hoặc ký số; scripts cài đặt cần được xác nhận trên OS mục tiêu.
+- Đã bổ sung NSIS Setup.exe và deb amd64; chưa tạo MSI, chưa ký số, chưa kiểm thử cài/gỡ package trên OS mục tiêu. Xem PACKAGES.md.
 
 Danh sách file source/config/deploy/test đầy đủ: [FILES.md](FILES.md). Hướng dẫn chạy, cấu hình thiết bị và test từ máy khác: [README](../README.md).
