@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=DICOM Desktop Agent
+Comment=Manage the local offline DICOM receiver
+Exec=dicom-agent-desktop
+TryExec=dicom-agent-desktop
+Icon=dicom-agent
+Terminal=false
+Categories=Science;MedicalSoftware;
+StartupNotify=true

@@ -1,0 +1,27 @@
+[Unit]
+Description=DICOM Desktop Agent
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=notify
+User=dicom-agent
+Group=dicom-agent-operators
+WorkingDirectory=/opt/dicom-agent/host
+ExecStart=/opt/dicom-agent/host/DicomAgent.Host
+Environment=DICOM_AGENT_DATA=/var/lib/dicom-agent
+Environment=DOTNET_BUNDLE_EXTRACT_BASE_DIR=/var/lib/dicom-agent/.bundle
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dicom-agent
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

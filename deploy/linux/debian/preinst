@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+# Stop before unpacking a replacement executable, avoiding ETXTBSY and mixed binaries.
+if [ "$1" = upgrade ] && [ -d /run/systemd/system ]; then
+    deb-systemd-invoke stop dicom-agent.service
+fi
+exit 0

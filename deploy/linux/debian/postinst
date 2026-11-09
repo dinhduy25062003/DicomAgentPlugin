@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    getent group dicom-agent-operators >/dev/null || addgroup --system dicom-agent-operators
+    id dicom-agent >/dev/null 2>&1 || adduser --system --group --home /var/lib/dicom-agent --no-create-home --shell /usr/sbin/nologin dicom-agent
+    install -d -o dicom-agent -g dicom-agent-operators -m 2750 /var/lib/dicom-agent /var/lib/dicom-agent/storage
+    # Do not guess the interactive user from sudo/dpkg environment variables.
+    # An administrator explicitly grants operator group membership after installation.
+    deb-systemd-helper unmask dicom-agent.service
+    if deb-systemd-helper --quiet was-enabled dicom-agent.service; then
+        deb-systemd-helper enable dicom-agent.service
+    fi
+    deb-systemd-helper update-state dicom-agent.service
+    if [ -d /run/systemd/system ]; then
+        systemctl --system daemon-reload
+        deb-systemd-invoke start dicom-agent.service
+    fi
+    echo 'DICOM Agent installed. Grant access: sudo usermod -aG dicom-agent-operators YOUR_USER; then sign out/in.'
+    echo 'No firewall ports were opened. Customer data is retained on remove and purge.'
+fi
+exit 0

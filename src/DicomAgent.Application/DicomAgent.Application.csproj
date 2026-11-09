@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup />
+  <ItemGroup>
+    <ProjectReference Include="../DicomAgent.Domain/DicomAgent.Domain.csproj" />
+  </ItemGroup>
+</Project>

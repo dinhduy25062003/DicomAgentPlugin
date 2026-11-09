@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+if [ "$1" = remove ]; then
+    deb-systemd-helper mask dicom-agent.service
+    if [ -d /run/systemd/system ]; then systemctl --system daemon-reload; fi
+fi
+if [ "$1" = purge ]; then
+    deb-systemd-helper purge dicom-agent.service
+    deb-systemd-helper unmask dicom-agent.service
+fi
+# Never delete customer data, configuration, storage, account or operator group.
+exit 0

@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+publish/
+.data/
+TestResults/
+*.user
+*.dcm
+*.db*

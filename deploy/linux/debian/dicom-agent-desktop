@@ -1,0 +1,3 @@
+#!/bin/sh
+export DICOM_AGENT_DATA=/var/lib/dicom-agent
+exec /opt/dicom-agent/desktop/DicomAgent.Desktop "$@"

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/DicomAgent.Infrastructure/DicomAgent.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+    <ProjectReference Include="../../src/DicomAgent.Host/DicomAgent.Host.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="Avalonia.Headless" />
+    <ProjectReference Include="../../src/DicomAgent.Desktop/DicomAgent.Desktop.csproj" />
+  </ItemGroup>
+</Project>

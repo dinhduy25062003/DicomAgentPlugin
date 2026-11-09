@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="DicomAgent.Desktop.Views.MainWindow"
+        Title="DICOM Desktop Agent" Width="1100" Height="780" MinWidth="800" MinHeight="600" Background="#101B29">
+  <Window.Styles>
+    <Style Selector="TextBox"><Setter Property="Margin" Value="0,4,0,12" /></Style>
+    <Style Selector="Button"><Setter Property="Padding" Value="18,10" /></Style>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*,Auto" Margin="28">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+      <StackPanel><TextBlock Text="DICOM Desktop Agent" FontSize="28" FontWeight="SemiBold" /><TextBlock Text="Local receiver · Offline storage · Manual website upload" Foreground="#91A5BC" Margin="0,8,0,0" /></StackPanel>
+      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+    </Grid>
+    <TabControl Grid.Row="1">
+      <TabItem Header="Dashboard">
+        <StackPanel Margin="12,24" Spacing="20">
+          <TextBlock Text="RECEIVER STATUS" Foreground="#91A5BC" />
+          <TextBlock Text="{Binding Status}" FontSize="36" Foreground="#70DAB8" />
+          <Border Background="#1A2A3D" Padding="22" CornerRadius="10"><TextBlock Text="{Binding Summary}" FontSize="16" TextWrapping="Wrap" /></Border>
+          <TextBlock Text="Recent errors (UTC)" FontSize="18" />
+          <TextBox Text="{Binding Errors}" IsReadOnly="True" AcceptsReturn="True" Height="190" />
+          <TextBlock Text="Closing this window leaves the Host service running." Foreground="#91A5BC" />
+        </StackPanel>
+      </TabItem>
+      <TabItem Header="Settings">
+        <ScrollViewer><StackPanel Margin="12,20" MaxWidth="780" HorizontalAlignment="Stretch">
+          <TextBlock Text="Receiver settings" FontSize="22" Margin="0,0,0,20" />
+          <Grid ColumnDefinitions="*,20,*">
+            <StackPanel><TextBlock Text="AE Title" /><TextBox Text="{Binding AeTitle}" /><TextBlock Text="Listen IP address" /><TextBox Text="{Binding ListenAddress}" /><TextBlock Text="Port" /><TextBox Text="{Binding Port}" /></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Allowed Calling AE Titles (comma separated)" /><TextBox Text="{Binding CallingAes}" /><TextBlock Text="Allowed source IPs (comma separated)" /><TextBox Text="{Binding RemoteAddresses}" /><TextBlock Text="Maximum concurrent associations" /><TextBox Text="{Binding MaxAssociations}" /></StackPanel>
+          </Grid>
+          <TextBlock Text="Storage directory (empty = OS default)" />
+          <Grid ColumnDefinitions="*,Auto"><TextBox Text="{Binding StoragePath}" /><Button Grid.Column="1" Content="Browse…" Click="BrowseStorage" Margin="10,4,0,12" /></Grid>
+          <TextBlock Text="Maximum instance size (bytes)" /><TextBox Text="{Binding MaxBytes}" />
+          <CheckBox Content="Enable receiver" IsChecked="{Binding ReceiverEnabled}" /><CheckBox Content="Enable file history" IsChecked="{Binding HistoryEnabled}" />
+          <TextBlock Text="Saving requires a service restart. Grant the service identity write access to custom storage first." TextWrapping="Wrap" Foreground="#EBC678" Margin="0,12" />
+          <StackPanel Orientation="Horizontal" Spacing="12"><Button Content="Validate" Command="{Binding ValidateCommand}" /><Button Content="Save settings" Command="{Binding SaveCommand}" /></StackPanel>
+        </StackPanel></ScrollViewer>
+      </TabItem>
+      <TabItem Header="Received files">
+        <Grid RowDefinitions="*,Auto" Margin="12,20">
+          <ListBox ItemsSource="{Binding History}" SelectedItem="{Binding Selected}">
+            <ListBox.ItemTemplate><DataTemplate>
+              <StackPanel Margin="8" Spacing="4">
+                <TextBlock Text="{Binding ReceivedAtUtc, StringFormat='Received (UTC): {0:O}'}" Foreground="#70DAB8" />
+                <TextBlock Text="{Binding StudyInstanceUid, StringFormat='Study: {0}'}" />
+                <TextBlock Text="{Binding SeriesInstanceUid, StringFormat='Series: {0}'}" />
+                <TextBlock Text="{Binding SopInstanceUid, StringFormat='SOP: {0}'}" />
+                <StackPanel Orientation="Horizontal" Spacing="20"><TextBlock Text="{Binding Modality, StringFormat='Modality: {0}'}" /><TextBlock Text="{Binding FileSize, StringFormat='Size: {0} bytes'}" /></StackPanel>
+                <TextBlock Text="{Binding FilePath}" Foreground="#91A5BC" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate></ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,12,0,0">
+            <Button Content="Open file location" Click="OpenLocation" /><Button Content="Copy file path" Click="CopyPath" />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+    </TabControl>
+    <Border Grid.Row="2" Background="#1A2A3D" Padding="14" Margin="0,18,0,0" CornerRadius="6"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" /></Border>
+  </Grid>
+</Window>
