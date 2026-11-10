@@ -4,9 +4,9 @@ Tài liệu dành cho Windows x64, bao gồm Windows chạy trong máy ảo. Age
 
 ## 1. Chuẩn bị
 
-- Gói `DicomAgent-0.1.0-win-x64-Setup.exe` từ `publish/installers` của máy build.
+- Gói `DicomAgent-0.1.1-win-x64-Setup.exe` từ `publish/installers` của máy build.
 - Tài khoản quản trị để cài service; tài khoản Windows của người vận hành để mở ứng dụng.
-- Thư mục chương trình giả lập Windows ở bước 3. Setup hiện chỉ chứa Host/Desktop, không kèm SCU.
+- Setup 0.1.1 tự tạo `%SystemDrive%\DicomSimulator` (thường là `C:\DicomSimulator`) và cài đủ SCU. Không cần build/copy SCU riêng.
 - Bản self-contained không cần .NET Runtime trên máy Windows nhận gói. Máy build cần .NET SDK theo `global.json` (hiện tại 8.0.422).
 
 Nếu đã cài thành công, chuyển đến bước 2. Các lệnh PowerShell bên dưới chạy trong Windows; riêng lệnh Bash được ghi rõ chạy trên máy build Ubuntu.
@@ -14,7 +14,7 @@ Nếu đã cài thành công, chuyển đến bước 2. Các lệnh PowerShell 
 ## 2. Cài đặt và kiểm tra service
 
 1. Trên Windows, chạy `whoami` trong PowerShell để xem tài khoản người vận hành, ví dụ `WIN-PC\operator`.
-2. Chạy Setup.exe, đồng ý quyền Administrator và nhập đúng tài khoản đó khi bộ cài yêu cầu. Không nhập mật khẩu.
+2. Nếu nâng cấp, chọn **Exit desktop** trong menu tray của bản cũ trước. Chạy Setup.exe, đồng ý quyền Administrator và nhập đúng tài khoản khi bộ cài yêu cầu. Không nhập mật khẩu.
 3. Đăng xuất rồi đăng nhập lại để quyền nhóm `DicomAgentOperators` có hiệu lực.
 4. Mở **DICOM Desktop Agent** từ Start Menu.
 5. Trong PowerShell, kiểm tra:
@@ -31,23 +31,19 @@ Start-Service DicomAgent
 
 Host nằm ở `%ProgramFiles%\DicomAgent\host`; dữ liệu nằm ở `%ProgramData%\DicomAgent`. Không chạy thêm Host bằng tay khi service đang chiếm cùng port.
 
-## 3. Chuẩn bị chương trình giả lập
+## 3. Chương trình giả lập được cài sẵn
 
-Chọn một trong hai cách build, chạy tại thư mục gốc repo trên máy build.
-
-**Máy build Ubuntu:**
-
-```bash
-dotnet publish tools/DicomAgent.Scu -c Release -r win-x64 --self-contained true -o publish/windows/scu
-```
-
-**Máy build Windows có SDK:**
+Sau khi cài Setup 0.1.1, kiểm tra trong PowerShell:
 
 ```powershell
-dotnet publish tools/DicomAgent.Scu -c Release -r win-x64 --self-contained true -o publish/windows/scu
+Test-Path "$env:SystemDrive\DicomSimulator\DicomAgent.Scu.exe"
 ```
 
-Copy toàn bộ nội dung thư mục `publish/windows/scu` sang `C:\DicomSimulator` trong Windows ảo. Giữ nguyên DLL và các file đi kèm, không copy riêng `.exe`.
+Mong đợi `True`. Trên Windows cài ở ổ C:, SCU nằm trong `C:\DicomSimulator`. Đây là thư mục công cụ gửi thử, khác với ứng dụng trong Program Files và ảnh nhận trong ProgramData. Với bộ cài 0.1.0 cũ, cần nâng cấp lên bộ cài mới.
+
+Ứng dụng Desktop mở không kèm terminal. Bấm X sẽ ẩn xuống system tray, có thể nằm trong nhóm biểu tượng ẩn dưới nút **^** cạnh đồng hồ; vị trí do Windows quản lý. Nhấp biểu tượng hoặc chọn **Open DICOM Agent** để mở lại. Chọn **Exit desktop (receiver keeps running)** để thoát hẳn giao diện. Service nhận ảnh vẫn hoạt động ngay cả sau khi thoát Desktop. SCU là công cụ dòng lệnh nên vẫn chạy trong PowerShell khi kiểm thử.
+
+Chỉ máy build cần chạy `deploy/windows/publish.ps1` để publish đủ Host, Desktop và SCU trước khi đóng gói.
 
 ## 4. Cấu hình thử nghiệm trên cùng Windows
 
@@ -80,7 +76,7 @@ Trở về ứng dụng → **Refresh**, kiểm tra Dashboard có trạng thái 
 Mở PowerShell bằng người dùng thường:
 
 ```powershell
-Set-Location C:\DicomSimulator
+Set-Location "$env:SystemDrive\DicomSimulator"
 .\DicomAgent.Scu.exe echo 127.0.0.1 11112 DICOM_AGENT XRAY_SIM
 ```
 
@@ -91,12 +87,12 @@ Kết quả cần thấy: `C-ECHO: 0000 (Success)`. Đây là kiểm tra DICOM, 
 Chạy trong cùng PowerShell:
 
 ```powershell
-$shot = Join-Path $PWD ("shot-" + [guid]::NewGuid().ToString('N') + '.dcm')
+$shot = Join-Path $env:TEMP ("shot-" + [guid]::NewGuid().ToString('N') + '.dcm')
 .\DicomAgent.Scu.exe generate $shot
 .\DicomAgent.Scu.exe store 127.0.0.1 11112 DICOM_AGENT $shot XRAY_SIM
 ```
 
-Kết quả cần thấy: `Synthetic DX fixture created.` và `C-STORE: 0000 (Success)`.
+File nguồn được tạo trong TEMP vì thư mục chứa SCU chỉ cấp quyền đọc/chạy cho operator. Kết quả cần thấy: `Synthetic DX fixture created.` và `C-STORE: 0000 (Success)`.
 
 `generate` tạo ảnh DX tổng hợp 2×2 pixel với PatientID `SYNTHETIC`, PatientName `TEST^ONLY` và UID mới. Đây là mô phỏng tạo/gửi dữ liệu, không có điều khiển phần cứng hay phát tia. Không dùng ảnh này để đánh giá chất lượng ảnh X-quang.
 
@@ -104,7 +100,7 @@ Kết quả cần thấy: `Synthetic DX fixture created.` và `C-STORE: 0000 (Su
 
 1. Trong ứng dụng, bấm **Refresh → Received files**.
 2. Chọn bản ghi mới → **Open file location** hoặc **Copy file path**.
-3. Kiểm tra file `.dcm` nằm trong storage của Agent, khác với file nguồn ở `C:\DicomSimulator`.
+3. Kiểm tra file `.dcm` nằm trong storage của Agent, khác với file nguồn trong `$env:TEMP`.
 
 Đường dẫn mặc định:
 

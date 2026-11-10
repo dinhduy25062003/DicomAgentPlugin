@@ -70,7 +70,7 @@ export DICOM_AGENT_DATA="$PWD/.data"
 dotnet run --project src/DicomAgent.Desktop
 ```
 
-Ctrl+C terminal Host để dừng graceful. Đóng Desktop chỉ đóng UI. Chạy CLI Host không cần systemd hoặc phiên đồ họa.
+Ctrl+C terminal Host để dừng graceful. Trên Linux, đóng Desktop chỉ đóng UI; trên Windows, bấm X ẩn UI xuống system tray. Menu tray Open mở lại, Exit desktop thoát giao diện; Host service tiếp tục chạy. Chạy CLI Host không cần systemd hoặc phiên đồ họa.
 
 Trong development Windows PowerShell:
 
@@ -149,11 +149,14 @@ Một Host sở hữu một data directory và storage root; không chạy hai i
 3. **Settings**: sửa AE, IP, port, thư mục, allowlists, association/size limits, bật receiver/history. Browse chọn thư mục. Validate kiểm tra format; Save còn kiểm tra quyền ghi từ identity Host.
 4. Save → restart service bằng lệnh OS bên dưới → Refresh. Refresh sẽ nạp lại fields từ Host, nên lưu phần chỉnh sửa trước.
 5. **Received files**: tối đa 100 file mới nhất, thời gian UTC, UID study/series/SOP, modality, size và path. Chọn dòng rồi Open file location hoặc Copy file path.
-6. Trên website, dùng thao tác chọn file `.dcm` và upload thủ công. Đóng UI không dừng Host.
+6. Trên website, dùng thao tác chọn file `.dcm` và upload thủ công. Trên Windows, bấm X đưa UI xuống system tray; menu Exit desktop thoát giao diện. Đóng UI không dừng Host.
 
 IPC: Windows named pipe `DicomAgent.Management.v1`, ACL cho service/current user, Administrators, SYSTEM và `DicomAgentOperators`, deny Network SID. Linux Unix socket `management.sock` mode `0660`, parent data `2750` do service sở hữu/group operator. OS group membership là authentication/authorization; không có token/password plaintext, public HTTP API hay CORS. Website thông thường không kết nối được IPC này. Operator có quyền xem dữ liệu và quản trị Agent; chỉ thêm người được tin cậy. Không bảo vệ được máy đã bị chiếm quyền bởi user quản trị.
 
 ## Cài Windows
+
+Setup Windows 0.1.1 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
+
 
 PowerShell tại root repository:
 

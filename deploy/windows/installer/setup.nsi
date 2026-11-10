@@ -4,7 +4,7 @@ Unicode true
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !ifndef VERSION
-!define VERSION "0.1.0"
+!define VERSION "0.1.1"
 !endif
 !ifndef ROOT
 !error "ROOT must be the absolute repository path"
@@ -46,7 +46,7 @@ Function OperatorPage
   !insertmacro MUI_HEADER_TEXT "Local operator account" "This account can read DICOM files and configure the Agent."
   nsDialogs::Create 1018
   Pop $0
-  ${NSD_CreateLabel} 0 0 100% 42u "Close DICOM Desktop Agent before installing or upgrading.$\r$\nEnter the Windows account that will operate this application (DOMAIN\user or COMPUTER\user)."
+  ${NSD_CreateLabel} 0 0 100% 42u "Exit DICOM Desktop Agent from its tray menu before installing or upgrading.$\r$\nEnter the operator account (DOMAIN\user or COMPUTER\user)."
   Pop $0
   ${NSD_CreateText} 0 48u 100% 14u "$OperatorUser"
   Pop $OperatorControl
@@ -69,6 +69,8 @@ Section "DICOM Agent"
   File /r /x *.pdb "${ROOT}/publish/windows/host/*"
   SetOutPath "$PLUGINSDIR\payload\desktop"
   File /r /x *.pdb "${ROOT}/publish/windows/desktop/*"
+  SetOutPath "$PLUGINSDIR\payload\scu"
+  File /r /x *.pdb "${ROOT}/publish/windows/scu/*"
   SetOutPath "$PLUGINSDIR\payload"
   File "${ROOT}/deploy/windows/install.ps1"
   File "${ROOT}/deploy/windows/installer/install-setup.ps1"
@@ -116,6 +118,6 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\DicomAgent"
   Delete "$INSTDIR\uninstall.ps1"
   Delete "$INSTDIR\Uninstall.exe"
-  # Preserve host/desktop folders as well: a customer may have chosen a custom storage underneath them.
+  # Preserve host/desktop and simulator folders: they may contain customer files.
   DetailPrint "Service removed. DICOM files, settings, database and application folders have been preserved."
 SectionEnd

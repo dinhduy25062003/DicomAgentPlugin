@@ -17,7 +17,7 @@
           <Border Background="#1A2A3D" Padding="22" CornerRadius="10"><TextBlock Text="{Binding Summary}" FontSize="16" TextWrapping="Wrap" /></Border>
           <TextBlock Text="Recent errors (UTC)" FontSize="18" />
           <TextBox Text="{Binding Errors}" IsReadOnly="True" AcceptsReturn="True" Height="190" />
-          <TextBlock Text="Closing this window leaves the Host service running." Foreground="#91A5BC" />
+          <TextBlock Text="On Windows, closing this window hides it in the system tray. The Host service keeps receiving images independently." TextWrapping="Wrap" Foreground="#91A5BC" />
         </StackPanel>
       </TabItem>
       <TabItem Header="Settings">

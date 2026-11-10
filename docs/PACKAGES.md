@@ -4,9 +4,11 @@ Phiên bản gói đầu tiên: **0.1.0**, CPU **x64/amd64**. Host và Desktop �
 
 ## Windows Setup.exe
 
-Artifact: `publish/installers/DicomAgent-0.1.0-win-x64-Setup.exe`.
+Bản Windows **0.1.1** bổ sung SCU tự cài vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`), Desktop không mở console và bấm X ẩn xuống system tray. Menu tray có Open và Exit desktop; Exit không dừng service. Vị trí trong nhóm hidden icons do Windows quyết định. Tạo ảnh thử vào TEMP, không ghi vào thư mục binaries của simulator.
 
-1. Copy duy nhất file Setup.exe sang máy Windows x64, đóng Desktop Agent đang mở nếu có.
+Artifact mới: `publish/installers/DicomAgent-0.1.1-win-x64-Setup.exe`.
+
+1. Copy duy nhất file Setup.exe sang máy Windows x64, thoát Desktop Agent đang mở qua menu tray → **Exit desktop** nếu có (bấm X chỉ ẩn).
 2. Chạy Setup.exe, chấp nhận elevation để cài service và ACL.
 3. Nhập Windows account của người vận hành, dạng `COMPUTER\user` hoặc `DOMAIN\user`. Không nhập mật khẩu. Tài khoản này được thêm vào `DicomAgentOperators`.
 4. Setup cài Host/Desktop vào `%ProgramFiles%\DicomAgent`, cài và tự khởi động Windows Service `DicomAgent` bằng identity `NT SERVICE\DicomAgent`.
@@ -15,7 +17,7 @@ Artifact: `publish/installers/DicomAgent-0.1.0-win-x64-Setup.exe`.
 
 Không cần cài .NET Runtime trên máy khách. Không tách riêng một Desktop.exe khỏi DLL/native files trong thư mục publish; Setup.exe đã chứa tất cả các file này.
 
-Gỡ bằng Settings → Apps → DICOM Desktop Agent hoặc `%ProgramFiles%\DicomAgent\Uninstall.exe`. Uninstaller gỡ service/firewall/shortcut/đăng ký ứng dụng; **giữ lại ảnh, SQLite, cấu hình, tài khoản/group và cả thư mục binaries** để tránh xóa storage tùy chỉnh mà khách hàng đặt dưới thư mục cài đặt. Có thể xóa binaries thủ công sau khi xác nhận không có dữ liệu cần giữ.
+Gỡ bằng Settings → Apps → DICOM Desktop Agent hoặc `%ProgramFiles%\DicomAgent\Uninstall.exe`. Uninstaller gỡ service/firewall/shortcut/đăng ký ứng dụng; **giữ lại ảnh, SQLite, cấu hình, tài khoản/group thư mục binaries và thư mục simulator** để tránh xóa storage tùy chỉnh mà khách hàng đặt dưới thư mục cài đặt. Có thể xóa binaries thủ công sau khi xác nhận không có dữ liệu cần giữ.
 
 Gói chưa ký Authenticode. Chưa kiểm thử chạy/cài/gỡ thực tế trên Windows; chỉ cross-build NSIS và kiểm tra payload từ Linux. Cần xác nhận trên Windows VM trước triển khai tại phòng khám.
 
@@ -63,15 +65,15 @@ bash deploy/linux/build-deb.sh 0.1.0
 # Để build Windows installer, cần PowerShell và NSIS trên máy build:
 pwsh -NoProfile -File deploy/windows/publish.ps1
 # Cài makensis qua package nsis trên máy build nếu chưa có, hoặc đặt MAKENSIS/NSISDIR cho tool unpack cục bộ:
-bash deploy/windows/build-installer.sh 0.1.0
+bash deploy/windows/build-installer.sh 0.1.1
 ```
 
 Trên Windows, cài NSIS cho máy build rồi:
 
 ```powershell
-./deploy/windows/build-installer.ps1 -Version 0.1.0
+./deploy/windows/build-installer.ps1 -Version 0.1.1
 # Nếu binaries đã publish:
-./deploy/windows/build-installer.ps1 -Version 0.1.0 -SkipPublish
+./deploy/windows/build-installer.ps1 -Version 0.1.1 -SkipPublish
 ```
 
 NSIS chỉ cần trên máy build, không cần trên máy khách. Công cụ Debian `dpkg-deb` cũng chỉ cần cho build hoặc cài gói deb. SHA-256 của hai artifact nằm trong `publish/installers/SHA256SUMS`.

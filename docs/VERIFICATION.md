@@ -1,5 +1,18 @@
 # Báo cáo triển khai và kiểm chứng
 
+## Cập nhật Windows 0.1.1 — 10/11/2026
+
+- Publish Windows self-contained cho Host, Desktop và SCU thành công. Setup đóng kèm SCU; script cài vào `%SystemDrive%\DicomSimulator`, giữ nguyên dữ liệu/configuration hiện hữu.
+- Desktop dùng Windows GUI subsystem (kiểm tra PE: subsystem = 2), không tạo console khi khởi chạy ứng dụng.
+- Thêm icon và menu tray Windows: Open khôi phục cửa sổ; X ẩn cửa sổ; Exit desktop thoát UI, không dừng service. Đường đóng do OS/app shutdown được phép đóng bình thường.
+- Build Release: 0 warnings, 0 errors. Regression tests Linux: 24 unit + 19 integration PASS. Headless test kiểm tra tài nguyên icon, đóng ẩn không hủy cửa sổ, khôi phục cửa sổ từ trạng thái minimized và đóng thật khi bỏ chế độ tray.
+- PowerShell parser và Bash syntax PASS. Cài/nâng cấp/ACL và thao tác tray thực tế trên Windows: NOT RUN trong phiên phát triển này; cần kiểm tra trên Windows VM. Vị trí icon trong nhóm hidden icons do Windows quản lý.
+- Setup 0.1.1 đã build: `publish/installers/DicomAgent-0.1.1-win-x64-Setup.exe` (57.281.419 bytes). Kiểm tra archive và extract bằng 7-Zip PASS; SHA-256 của 417 file payload Host/Desktop/SCU khớp publish. SHA-256 installer: `fd91ee903eab787fe969089beb9249fa45a0f65c72d88a30b60d703ea3bf34b9`, được thêm vào `publish/installers/SHA256SUMS`.
+
+Kiểm tra trên Windows sau khi cài bản mới: SCU tồn tại; mở Start Menu không có terminal; X làm mất cửa sổ khỏi taskbar nhưng icon tray còn; Open mở lại; Exit desktop kết thúc UI; C-ECHO/C-STORE vẫn thành công nhờ service; ảnh cũ/settings vẫn giữ sau nâng cấp. Thoát UI qua menu tray trước nâng cấp tiếp theo.
+
+## Báo cáo gốc 0.1.0
+
 Ngày: 09/11/2026, môi trường Linux Ubuntu 26.04 x64; SDK 8.0.422 / runtime 8.0.28. Source là .NET 8/C# 12. Repository ban đầu trống, không có source hay dữ liệu khách hàng để thay đổi.
 
 ## Projects và kiến trúc
