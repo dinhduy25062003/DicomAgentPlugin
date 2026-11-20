@@ -1,60 +1,136 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="DicomAgent.Desktop.Views.MainWindow"
-        Title="DICOM Desktop Agent" Width="1100" Height="780" MinWidth="800" MinHeight="600" Background="#101B29">
+        Title="DICOM Desktop Agent" Width="1240" Height="850" MinWidth="980" MinHeight="700" Background="#101B29">
   <Window.Styles>
-    <Style Selector="TextBox"><Setter Property="Margin" Value="0,4,0,12" /></Style>
-    <Style Selector="Button"><Setter Property="Padding" Value="18,10" /></Style>
+    <Style Selector="TextBox"><Setter Property="Margin" Value="0,4,0,10" /></Style>
+    <Style Selector="ListBox"><Setter Property="Background" Value="#152234" /><Setter Property="BorderBrush" Value="#2A3D52" /></Style>
+    <Style Selector="Button"><Setter Property="Padding" Value="14,9" /></Style>
+    <Style Selector="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /></Style>
   </Window.Styles>
-  <Grid RowDefinitions="Auto,*,Auto" Margin="28">
-    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,24">
-      <StackPanel><TextBlock Text="DICOM Desktop Agent" FontSize="28" FontWeight="SemiBold" /><TextBlock Text="Local receiver · Offline storage · Manual website upload" Foreground="#91A5BC" Margin="0,8,0,0" /></StackPanel>
-      <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,18">
+      <StackPanel Spacing="6">
+        <TextBlock Text="DICOM Desktop Agent" FontSize="26" FontWeight="SemiBold" />
+        <TextBlock Text="{Binding TenantName}" Foreground="#70DAB8" />
+        <TextBlock Text="{Binding ActiveCapture}" Foreground="#91A5BC" />
+      </StackPanel>
+      <Button Grid.Column="1" Content="Làm mới" Command="{Binding RefreshCommand}" VerticalAlignment="Center" />
     </Grid>
-    <TabControl Grid.Row="1">
-      <TabItem Header="Dashboard">
-        <StackPanel Margin="12,24" Spacing="20">
-          <TextBlock Text="RECEIVER STATUS" Foreground="#91A5BC" />
-          <TextBlock Text="{Binding Status}" FontSize="36" Foreground="#70DAB8" />
-          <Border Background="#1A2A3D" Padding="22" CornerRadius="10"><TextBlock Text="{Binding Summary}" FontSize="16" TextWrapping="Wrap" /></Border>
-          <TextBlock Text="Recent errors (UTC)" FontSize="18" />
-          <TextBox Text="{Binding Errors}" IsReadOnly="True" AcceptsReturn="True" Height="190" />
-          <TextBlock Text="On Windows, closing this window hides it in the system tray. The Host service keeps receiving images independently." TextWrapping="Wrap" Foreground="#91A5BC" />
-        </StackPanel>
-      </TabItem>
-      <TabItem Header="Settings">
-        <ScrollViewer><StackPanel Margin="12,20" MaxWidth="780" HorizontalAlignment="Stretch">
-          <TextBlock Text="Receiver settings" FontSize="22" Margin="0,0,0,20" />
-          <Grid ColumnDefinitions="*,20,*">
-            <StackPanel><TextBlock Text="AE Title" /><TextBox Text="{Binding AeTitle}" /><TextBlock Text="Listen IP address" /><TextBox Text="{Binding ListenAddress}" /><TextBlock Text="Port" /><TextBox Text="{Binding Port}" /></StackPanel>
-            <StackPanel Grid.Column="2"><TextBlock Text="Allowed Calling AE Titles (comma separated)" /><TextBox Text="{Binding CallingAes}" /><TextBlock Text="Allowed source IPs (comma separated)" /><TextBox Text="{Binding RemoteAddresses}" /><TextBlock Text="Maximum concurrent associations" /><TextBox Text="{Binding MaxAssociations}" /></StackPanel>
+    <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTab}">
+      <TabItem Header="Quản lý request">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="8,16">
+          <Grid ColumnDefinitions="*,220" Margin="0,0,0,10">
+            <TextBox Watermark="Tìm đối tượng, khách hàng, dịch vụ, mã…" Text="{Binding Search}" />
+            <ComboBox Grid.Column="1" SelectedIndex="{Binding FilterIndex}" Margin="12,4,0,10" HorizontalAlignment="Stretch">
+              <ComboBoxItem Content="Tất cả trạng thái" /><ComboBoxItem Content="new — mới nhận" /><ComboBoxItem Content="done — đã gửi" /><ComboBoxItem Content="uploading — đang gửi" /><ComboBoxItem Content="review — cần kiểm tra" />
+            </ComboBox>
           </Grid>
-          <TextBlock Text="Storage directory (empty = OS default)" />
-          <Grid ColumnDefinitions="*,Auto"><TextBox Text="{Binding StoragePath}" /><Button Grid.Column="1" Content="Browse…" Click="BrowseStorage" Margin="10,4,0,12" /></Grid>
-          <TextBlock Text="Maximum instance size (bytes)" /><TextBox Text="{Binding MaxBytes}" />
-          <CheckBox Content="Enable receiver" IsChecked="{Binding ReceiverEnabled}" /><CheckBox Content="Enable file history" IsChecked="{Binding HistoryEnabled}" />
-          <TextBlock Text="Saving requires a service restart. Grant the service identity write access to custom storage first." TextWrapping="Wrap" Foreground="#EBC678" Margin="0,12" />
-          <StackPanel Orientation="Horizontal" Spacing="12"><Button Content="Validate" Command="{Binding ValidateCommand}" /><Button Content="Save settings" Command="{Binding SaveCommand}" /></StackPanel>
-        </StackPanel></ScrollViewer>
-      </TabItem>
-      <TabItem Header="Received files">
-        <Grid RowDefinitions="*,Auto" Margin="12,20">
-          <ListBox ItemsSource="{Binding History}" SelectedItem="{Binding Selected}">
+          <ListBox Grid.Row="1" ItemsSource="{Binding Requests}" SelectedItem="{Binding SelectedRequest}">
             <ListBox.ItemTemplate><DataTemplate>
-              <StackPanel Margin="8" Spacing="4">
-                <TextBlock Text="{Binding ReceivedAtUtc, StringFormat='Received (UTC): {0:O}'}" Foreground="#70DAB8" />
-                <TextBlock Text="{Binding StudyInstanceUid, StringFormat='Study: {0}'}" />
-                <TextBlock Text="{Binding SeriesInstanceUid, StringFormat='Series: {0}'}" />
-                <TextBlock Text="{Binding SopInstanceUid, StringFormat='SOP: {0}'}" />
-                <StackPanel Orientation="Horizontal" Spacing="20"><TextBlock Text="{Binding Modality, StringFormat='Modality: {0}'}" /><TextBlock Text="{Binding FileSize, StringFormat='Size: {0} bytes'}" /></StackPanel>
-                <TextBlock Text="{Binding FilePath}" Foreground="#91A5BC" TextWrapping="Wrap" />
-              </StackPanel>
+              <Grid ColumnDefinitions="*,130" Margin="8,10">
+                <StackPanel Spacing="5">
+                  <Button Content="{Binding Info.EntityName}" Click="ViewRequest" HorizontalAlignment="Left" Padding="0,4" Background="Transparent" Foreground="#70DAB8" FontSize="18" />
+                  <TextBlock Text="{Binding Info.PartnerName, StringFormat='Khách hàng: {0}'}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Info.ServiceName, StringFormat='Dịch vụ: {0}'}" />
+                  <StackPanel Orientation="Horizontal" Spacing="16"><TextBlock Text="{Binding Info.ModelName}" Foreground="#91A5BC" /><TextBlock Text="{Binding Status}" Foreground="#EBC678" /><TextBlock Text="{Binding CreatedAtUtc, StringFormat='UTC: {0:dd/MM/yyyy HH:mm}'}" Foreground="#91A5BC" /></StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                  <Button Content="Thực hiện" Click="ExecuteRequest" HorizontalAlignment="Stretch" />
+                  <Button Content="Xóa request" Click="DeleteRequest" HorizontalAlignment="Stretch" />
+                </StackPanel>
+              </Grid>
             </DataTemplate></ListBox.ItemTemplate>
           </ListBox>
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,12,0,0">
-            <Button Content="Open file location" Click="OpenLocation" /><Button Content="Copy file path" Click="CopyPath" />
+          <TextBlock Grid.Row="2" Margin="0,12,0,0" Foreground="#91A5BC" Text="Request mới từ web tự xuất hiện. Bấm tên để xem chi tiết; Thực hiện để bật nhận ảnh cho ca. Xóa request vẫn giữ file DICOM gốc." />
+        </Grid>
+      </TabItem>
+      <TabItem Header="Thực hiện dịch vụ">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="8,16">
+          <Border Background="#1A2A3D" Padding="16" CornerRadius="8">
+            <Grid ColumnDefinitions="*,*">
+              <StackPanel Spacing="5">
+                <TextBlock Text="{Binding CurrentRequest.Info.EntityName}" FontSize="20" Foreground="#70DAB8" />
+                <TextBlock Text="{Binding CurrentRequest.Info.PartnerName, StringFormat='Khách hàng: {0}'}" FontSize="17" />
+                <TextBlock Text="{Binding CurrentRequest.Info.PartnerId, StringFormat='PartnerId: {0}'}" />
+                <TextBlock Text="{Binding CurrentRequest.Info.ServiceName, StringFormat='Dịch vụ: {0}'}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="5">
+                <TextBlock Text="{Binding CurrentRequest.Info.ModelName, StringFormat='Model: {0}'}" />
+                <TextBlock Text="{Binding CurrentRequest.Info.ResModel, StringFormat='resModel: {0}'}" />
+                <TextBlock Text="{Binding CurrentRequest.Info.ResId, StringFormat='resId: {0}'}" />
+                <TextBlock Text="{Binding CurrentRequest.Status, StringFormat='Trạng thái: {0}'}" Foreground="#EBC678" />
+              </StackPanel>
+            </Grid>
+          </Border>
+          <StackPanel Grid.Row="1" Margin="0,10" Spacing="8">
+            <TextBlock Text="{Binding CaptureNotice}" Foreground="#EBC678" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Content="Thực hiện / Nhận ảnh" Command="{Binding StartCaptureCommand}" IsEnabled="{Binding IsEditable}" />
+              <Button Content="Dừng nhận cho ca" Command="{Binding StopCaptureCommand}" />
+              <Button Content="Chọn file DICOM…" Click="ImportDicomFiles" IsEnabled="{Binding IsEditable}" />
+              <Button Content="Chọn thư mục…" Click="ImportDicomFolder" IsEnabled="{Binding IsEditable}" />
+            </StackPanel>
+          </StackPanel>
+          <Grid Grid.Row="2" ColumnDefinitions="*,14,*">
+            <Grid RowDefinitions="*,Auto">
+              <ListBox ItemsSource="{Binding CaptureFiles}" SelectedItem="{Binding SelectedFile}">
+                <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="6" Spacing="4">
+                  <TextBlock Text="{Binding FileName}" Foreground="#70DAB8" />
+                  <TextBlock Text="{Binding PatientName, StringFormat='DICOM PatientName: {0}'}" />
+                  <TextBlock Text="{Binding PatientId, StringFormat='DICOM PatientID: {0}'}" />
+                  <TextBlock Text="{Binding StudyInstanceUid, StringFormat='Study: {0}'}" FontSize="12" />
+                  <TextBlock Text="{Binding FileSize, StringFormat='Dung lượng: {0} bytes'}" Foreground="#91A5BC" />
+                </StackPanel></DataTemplate></ListBox.ItemTemplate>
+              </ListBox>
+              <Button Grid.Row="1" Content="Bỏ ảnh đã chọn khỏi ca" Command="{Binding RemoveFileCommand}" IsEnabled="{Binding IsEditable}" Margin="0,8,0,0" />
+            </Grid>
+            <Border Grid.Column="2" Background="#080F17" CornerRadius="8" Padding="12">
+              <Grid RowDefinitions="*,Auto"><Image Source="{Binding Preview}" Stretch="Uniform" /><TextBlock Grid.Row="1" Text="{Binding PreviewMessage}" Foreground="#91A5BC" Margin="0,8,0,0" /></Grid>
+            </Border>
+          </Grid>
+          <StackPanel Grid.Row="3" Spacing="8" Margin="0,10,0,0">
+            <TextBlock Text="{Binding CurrentRequest.LastError}" Foreground="#EBC678" />
+            <StackPanel IsVisible="{Binding IsReview}" Spacing="6">
+              <TextBlock Text="Kết quả upload chưa chắc chắn. Mở SaaS kiểm tra đủ file trước khi chọn một trong hai thao tác sau." Foreground="#EBC678" />
+              <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="Đã kiểm tra: đủ ảnh trên SaaS" Click="ConfirmUploaded" /><Button Content="Đã kiểm tra: chưa có ảnh, cho thử lại" Click="AllowRetry" /></StackPanel>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto">
+              <CheckBox Content="Tôi đã đối chiếu đúng khách hàng, ca chụp và tất cả ảnh trong danh sách." IsChecked="{Binding Verified}" IsEnabled="{Binding IsEditable}" />
+              <Button Grid.Column="1" Content="Done — Gửi lên SaaS" Command="{Binding DoneCommand}" IsEnabled="{Binding IsEditable}" Background="#197B68" />
+            </Grid>
           </StackPanel>
         </Grid>
       </TabItem>
+      <TabItem Header="Cấu hình kết nối">
+        <ScrollViewer><StackPanel Margin="8,16" MaxWidth="1000" Spacing="8">
+          <TextBlock Text="{Binding Status}" FontSize="24" Foreground="#70DAB8" />
+          <TextBlock Text="{Binding Summary}" Foreground="#91A5BC" />
+          <Border Background="#1A2A3D" Padding="14" CornerRadius="8">
+            <StackPanel Spacing="8">
+              <CheckBox Content="Mở giao diện khi đăng nhập máy" IsChecked="{Binding OpenAtLogin}" />
+              <TextBlock Text="Dịch vụ nhận ảnh tự chạy sau khi cài và khi máy khởi động. Tùy chọn này mở thêm giao diện Desktop trên tài khoản hiện tại." Foreground="#91A5BC" />
+              <Button Content="Lưu tùy chọn khởi động" Command="{Binding SaveStartupCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+          </Border>
+          <TextBlock Text="Kết nối nhận DICOM từ máy chụp" FontSize="21" Margin="0,10" />
+          <Grid ColumnDefinitions="*,20,*">
+            <StackPanel><TextBlock Text="AE Title" /><TextBox Text="{Binding AeTitle}" /><TextBlock Text="IP lắng nghe của máy cài app (0.0.0.0 = mọi card mạng)" /><TextBox Text="{Binding ListenAddress}" /><TextBlock Text="Port DICOM" /><TextBox Text="{Binding Port}" /></StackPanel>
+            <StackPanel Grid.Column="2"><TextBlock Text="Calling AE được phép (phân cách bằng dấu phẩy)" /><TextBox Text="{Binding CallingAes}" /><TextBlock Text="IP máy chụp được phép (phân cách bằng dấu phẩy)" /><TextBox Text="{Binding RemoteAddresses}" /><TextBlock Text="Số kết nối đồng thời tối đa" /><TextBox Text="{Binding MaxAssociations}" /></StackPanel>
+          </Grid>
+          <TextBlock Text="Thư mục lưu ảnh (trống = mặc định hệ điều hành)" />
+          <Grid ColumnDefinitions="*,Auto"><TextBox Text="{Binding StoragePath}" /><Button Grid.Column="1" Content="Chọn…" Click="BrowseStorage" Margin="10,4,0,10" /></Grid>
+          <TextBlock Text="Dung lượng tối đa mỗi file (bytes)" /><TextBox Text="{Binding MaxBytes}" />
+          <StackPanel Orientation="Horizontal" Spacing="20"><CheckBox Content="Bật bộ nhận DICOM" IsChecked="{Binding ReceiverEnabled}" /><CheckBox Content="Lưu lịch sử file" IsChecked="{Binding HistoryEnabled}" /></StackPanel>
+          <TextBlock Text="Web → localhost → SaaS" FontSize="21" Margin="0,12" />
+          <TextBlock Text="{Binding TenantName, StringFormat='Tenant cố định: {0}'}" Foreground="#70DAB8" />
+          <TextBlock Text="Port local API (chỉ 127.0.0.1)" /><TextBox Text="{Binding LocalPort}" />
+          <TextBlock Text="URL API SaaS — {TenantName} lấy từ request đầu tiên" /><TextBox Text="{Binding SaasUrl}" />
+          <TextBlock Text="Origin web bổ sung được phép gọi local (ví dụ http://localhost:4200; phân cách dấu phẩy)" /><TextBox Text="{Binding AllowedOrigins}" />
+          <TextBlock Text="Origin tenant theo URL SaaS được cho phép tự động. Sau khi lưu, khởi động lại dịch vụ DicomAgent để áp dụng cấu hình. Trên máy chụp, cấu hình đích là IP LAN / port DICOM / AE của máy này." Foreground="#EBC678" />
+          <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="Kiểm tra DICOM" Command="{Binding ValidateCommand}" /><Button Content="Lưu cấu hình" Command="{Binding SaveCommand}" /></StackPanel>
+          <TextBlock Text="Lỗi gần đây (UTC)" Margin="0,12,0,0" /><TextBox Text="{Binding Errors}" IsReadOnly="True" AcceptsReturn="True" Height="100" />
+        </StackPanel></ScrollViewer>
+      </TabItem>
     </TabControl>
-    <Border Grid.Row="2" Background="#1A2A3D" Padding="14" Margin="0,18,0,0" CornerRadius="6"><TextBlock Text="{Binding Message}" TextWrapping="Wrap" /></Border>
+    <Border Grid.Row="2" Background="#1A2A3D" Padding="12" Margin="0,14,0,0" CornerRadius="6"><TextBlock Text="{Binding Message}" /></Border>
   </Grid>
 </Window>

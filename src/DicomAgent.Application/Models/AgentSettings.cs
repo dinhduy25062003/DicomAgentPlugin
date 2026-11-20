@@ -16,11 +16,17 @@ public sealed class AgentOptions
     public bool EnableReceiver { get; set; } = true;
     public bool EnableFileHistory { get; set; } = true;
 }
-public sealed record AgentSettings(DicomOptions Dicom, AgentOptions Agent);
+public sealed record AgentSettings(DicomOptions Dicom, AgentOptions Agent)
+{
+    public LocalApiOptions LocalApi { get; init; } = new();
+}
 public sealed record HistoryItem(DateTime ReceivedAtUtc, string StudyInstanceUid, string SeriesInstanceUid,
     string SopInstanceUid, string? Modality, long FileSize, string FilePath);
 public sealed record AgentStatus(string State, DicomOptions ActiveConfiguration, long TotalReceivedFiles,
     DateTime? LastReceivedAtUtc, string[] RecentErrors, bool RestartRequired);
-public sealed record ManagementRequest(string Operation, AgentSettings? Settings = null);
+public sealed record ManagementRequest(string Operation, AgentSettings? Settings = null, Guid? RequestId = null,
+    Guid? FileId = null, string? FileName = null, long FileSize = 0, Guid[]? FileIds = null);
 public sealed record ManagementResponse(bool Success, string? Error = null, AgentSettings? Settings = null,
-    AgentStatus? Status = null, HistoryItem[]? History = null);
+    AgentStatus? Status = null, HistoryItem[]? History = null, CaptureSnapshot? Captures = null, ImagePreview? Preview = null);
+
+public sealed record DesktopConnection(string BaseUrl, string Key);

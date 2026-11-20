@@ -111,7 +111,7 @@ public sealed class ReceiverTests
     {
         await using var f = new TestFixture(); await f.Repository.InitializeAsync(default);
         var failing = new FailingRepository(f.Repository);
-        var store = new InstanceStore(failing, f.Options, new(), Microsoft.Extensions.Logging.Abstractions.NullLogger<InstanceStore>.Instance, new());
+        var store = new InstanceStore(failing, f.Options, new(), Microsoft.Extensions.Logging.Abstractions.NullLogger<InstanceStore>.Instance, new(), f.Provider.GetRequiredService<DicomAgent.Application.Abstractions.ICaptureRequestService>());
         var result = await store.SaveAsync(TestFixture.File(), default);
         Assert.True(result.HistoryPending); Assert.True(System.IO.File.Exists(result.Path)); Assert.Empty(await f.Repository.RecentAsync(default));
         failing.Fail = false; await store.ReconcileAsync(default); await store.ReconcileAsync(default);

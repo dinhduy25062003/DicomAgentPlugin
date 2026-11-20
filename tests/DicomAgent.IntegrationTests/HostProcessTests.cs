@@ -20,7 +20,7 @@ public sealed class HostProcessTests
         var configuration = AppContext.BaseDirectory.Contains("Release") ? "Release" : "Debug";
         var hostPath = Path.Combine(root.FullName, "src", "DicomAgent.Host", "bin", configuration, "net8.0", "DicomAgent.Host.dll");
         var settingsPath = Path.Combine(fixture.Data, "settings.json");
-        await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(new AgentSettings(fixture.Options, new())));
+        await File.WriteAllTextAsync(settingsPath, JsonSerializer.Serialize(new AgentSettings(fixture.Options, new()) { LocalApi = new() { Port = TestFixture.FreePort() } }));
         var client = new ManagementClient();
         var process = Start(hostPath, fixture.Data);
         try
@@ -35,7 +35,7 @@ public sealed class HostProcessTests
             Assert.True((await client.SendAsync(new("save", settings))).Success);
             Assert.True((await client.SendAsync(new("status"))).Status!.RestartRequired);
             await StopAsync(process);
-            Assert.False(File.Exists(AgentPaths.SocketPath));
+            Assert.False(File.Exists(Path.Combine(fixture.Data, "management.sock")));
             process.Dispose(); process = Start(hostPath, fixture.Data);
             await WaitForHostAsync(process);
             var restarted = (await client.SendAsync(new("status"))).Status!;
@@ -57,9 +57,14 @@ public sealed class HostProcessTests
     private static async Task WaitForHostAsync(Process process)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        while (!File.Exists(AgentPaths.SocketPath))
+        while (true)
         {
-            Assert.False(process.HasExited, "Host exited before opening its management socket.");
+            Assert.False(process.HasExited, "Host exited before opening its local HTTP API.");
+            try
+            {
+                if ((await new ManagementClient().SendAsync(new("status"), timeout.Token)).Status?.State == "Running") return;
+            }
+            catch (Exception ex) when (ex is IOException or HttpRequestException or JsonException or InvalidDataException) { }
             await Task.Delay(50, timeout.Token);
         }
     }

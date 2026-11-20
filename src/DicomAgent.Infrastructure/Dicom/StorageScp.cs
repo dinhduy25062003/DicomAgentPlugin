@@ -1,3 +1,4 @@
+using DicomAgent.Application.Abstractions;
 using System.Net;
 using System.Text;
 using DicomAgent.Application.Models;
@@ -9,9 +10,10 @@ using Microsoft.Extensions.Logging;
 namespace DicomAgent.Infrastructure.Dicom;
 
 public sealed class StorageScp(INetworkStream stream, Encoding encoding, ILogger logger,
-    DicomServiceDependencies dependencies, DicomOptions options, InstanceStore store, ReceiverState state)
+    DicomServiceDependencies dependencies, DicomOptions options, InstanceStore store, ReceiverState state, ICaptureRequestService captures)
     : DicomService(stream, encoding, logger, dependencies), IDicomServiceProvider, IDicomCStoreProvider, IDicomCEchoProvider
 {
+    private CaptureSession? captureSession;
     private static readonly HashSet<string> StorageClasses = [
         "1.2.840.10008.5.1.4.1.1.1", "1.2.840.10008.5.1.4.1.1.1.1", "1.2.840.10008.5.1.4.1.1.1.1.1",
         "1.2.840.10008.5.1.4.1.1.1.2", "1.2.840.10008.5.1.4.1.1.1.2.1", "1.2.840.10008.5.1.4.1.1.1.3",
@@ -37,6 +39,7 @@ public sealed class StorageScp(INetworkStream stream, Encoding encoding, ILogger
                 pc.AcceptTransferSyntaxes(DicomTransferSyntax.ExplicitVRLittleEndian, DicomTransferSyntax.ImplicitVRLittleEndian);
             else pc.SetResult(DicomPresentationContextResult.RejectAbstractSyntaxNotSupported);
         }
+        captureSession = await captures.CurrentSessionAsync(CancellationToken.None);
         await SendAssociationAcceptAsync(association);
     }
     protected override void CreateCStoreReceiveStream(DicomFile file)
@@ -58,7 +61,7 @@ public sealed class StorageScp(INetworkStream stream, Encoding encoding, ILogger
             var item = MetadataExtractor.Extract(request.File);
             if (request.SOPInstanceUID.UID != item.SopInstanceUid || request.SOPClassUID.UID != item.SopClassUid)
                 return new DicomCStoreResponse(request, DicomStatus.StorageDataSetDoesNotMatchSOPClassError);
-            await store.SaveAsync(request.File, CancellationToken.None);
+            await store.SaveAsync(request.File, CancellationToken.None, associateCapture: false, session: captureSession);
             return new DicomCStoreResponse(request, DicomStatus.Success);
         }
         catch (InstanceConflictException) { state.Error("Instance UID content conflict; original retained."); return new(request, DicomStatus.ProcessingFailure); }

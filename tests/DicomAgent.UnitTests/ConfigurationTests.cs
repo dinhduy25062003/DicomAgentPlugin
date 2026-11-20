@@ -57,9 +57,16 @@ public sealed class ConfigurationTests
         Assert.NotEmpty(ConfigurationRules.Validate(new() { MaxInstanceBytes = 0 }));
     }
     [Fact]
-    public async Task RejectOversizedIpcBeforeAllocating()
+    public async Task DesktopConnectionRejectsNonLoopbackServer()
     {
-        using var stream = new MemoryStream(BitConverter.GetBytes(int.MaxValue));
-        await Assert.ThrowsAsync<InvalidDataException>(() => ManagementWire.ReadAsync<ManagementResponse>(stream, default));
+        var old = Environment.GetEnvironmentVariable("DICOM_AGENT_DATA");
+        var directory = Path.Combine(Path.GetTempPath(), "dicom-connection-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory); Environment.SetEnvironmentVariable("DICOM_AGENT_DATA", directory);
+        try
+        {
+            await File.WriteAllTextAsync(AgentPaths.DesktopConnectionFile, "{\"BaseUrl\":\"https://external.example\",\"Key\":\"synthetic\"}");
+            await Assert.ThrowsAsync<InvalidDataException>(() => ManagementClient.ConnectionAsync());
+        }
+        finally { Environment.SetEnvironmentVariable("DICOM_AGENT_DATA", old); Directory.Delete(directory, true); }
     }
 }

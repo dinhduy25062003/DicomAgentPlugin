@@ -2,6 +2,8 @@ using DicomAgent.Application.Abstractions;
 using DicomAgent.Application.Models;
 using DicomAgent.Application.Services;
 using DicomAgent.Infrastructure.Configuration;
+using DicomAgent.Infrastructure.Capture;
+using DicomAgent.Infrastructure.Management;
 using DicomAgent.Infrastructure.Dicom;
 using DicomAgent.Infrastructure.Persistence;
 using DicomAgent.Infrastructure.Storage;
@@ -19,6 +21,13 @@ public static class DependencyInjection
         services.AddSingleton<IValidateOptions<DicomOptions>, DicomOptionsValidator>();
         services.AddOptions<DicomOptions>().Bind(configuration.GetSection("Dicom")).ValidateOnStart();
         services.AddOptions<AgentOptions>().Bind(configuration.GetSection("Agent"));
+        services.AddOptions<LocalApiOptions>().Bind(configuration.GetSection("LocalApi"));
+        services.AddSingleton(sp => sp.GetRequiredService<IOptionsMonitor<LocalApiOptions>>().CurrentValue);
+        services.AddSingleton<ICaptureRequestRepository, JsonCaptureRequestRepository>();
+        services.AddSingleton<IRequestSecretStore, RequestSecretStore>();
+        services.AddSingleton<ISaasAttachmentClient, SaasAttachmentClient>();
+        services.AddSingleton<ICaptureImageReader, DicomCaptureImageReader>();
+        services.AddSingleton<ICaptureUploadQueue, CaptureUploadQueue>();
         // Immutable runtime snapshots; saved configuration applies after service restart.
         services.AddSingleton(sp =>
         {
@@ -36,6 +45,9 @@ public static class DependencyInjection
         var connection = new SqliteConnectionStringBuilder { DataSource = Path.Combine(AgentPaths.DataDirectory, "history.db"), DefaultTimeout = 10 }.ToString();
         services.AddDbContextFactory<AgentDbContext>(o => o.UseSqlite(connection));
         services.AddSingleton<IInstanceRepository, InstanceRepository>();
+        services.AddSingleton<IAgentAdministration, AgentAdministration>();
+        services.AddSingleton<ICaptureFileImporter, CaptureFileImporter>();
+        services.AddSingleton<ManagementAccess>();
         services.AddSingleton<InstanceStore>(); services.AddSingleton<ReceiverController>();
         return services;
     }

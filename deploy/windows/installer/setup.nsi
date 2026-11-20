@@ -4,7 +4,7 @@ Unicode true
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !ifndef VERSION
-!define VERSION "0.1.1"
+!define VERSION "0.2.2"
 !endif
 !ifndef ROOT
 !error "ROOT must be the absolute repository path"
@@ -50,7 +50,7 @@ Function OperatorPage
   Pop $0
   ${NSD_CreateText} 0 48u 100% 14u "$OperatorUser"
   Pop $OperatorControl
-  ${NSD_CreateLabel} 0 76u 100% 65u "The Host service starts automatically under a restricted service identity. No firewall ports are opened. Configure device allowlists and LAN firewall rules after installation.$\r$\nSign out and sign in again after installation to activate operator access."
+  ${NSD_CreateLabel} 0 76u 100% 65u "The Host service starts automatically under a restricted service identity. No firewall ports are opened. Configure device allowlists and LAN firewall rules after installation.$\r$\nOperator access is ready after installation; no sign out is required."
   Pop $0
   nsDialogs::Show
 FunctionEnd

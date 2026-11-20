@@ -1,10 +1,13 @@
 # Cài đặt và giả lập máy X-quang trên Windows
 
+Bản 0.2.2: [quản lý request, nhận/chọn DICOM và Done upload SaaS](LOCALHOST-WEB-SAAS.md). Dùng cấu hình và quy trình UI trong tài liệu này thay cho các bước Dashboard/Received files cũ bên dưới.
+
+
 Tài liệu dành cho Windows x64, bao gồm Windows chạy trong máy ảo. Agent nhận DICOM qua TCP và tự lưu `.dcm`; chương trình `DicomAgent.Scu` đóng vai thiết bị gửi. Không cần kết nối máy X-quang thật để thử luồng này.
 
 ## 1. Chuẩn bị
 
-- Gói `DicomAgent-0.1.1-win-x64-Setup.exe` từ `publish/installers` của máy build.
+- Gói `DicomAgent-0.2.2-win-x64-Setup.exe` từ `publish/installers` của máy build.
 - Tài khoản quản trị để cài service; tài khoản Windows của người vận hành để mở ứng dụng.
 - Setup 0.1.1 tự tạo `%SystemDrive%\DicomSimulator` (thường là `C:\DicomSimulator`) và cài đủ SCU. Không cần build/copy SCU riêng.
 - Bản self-contained không cần .NET Runtime trên máy Windows nhận gói. Máy build cần .NET SDK theo `global.json` (hiện tại 8.0.422).
@@ -15,7 +18,7 @@ Nếu đã cài thành công, chuyển đến bước 2. Các lệnh PowerShell 
 
 1. Trên Windows, chạy `whoami` trong PowerShell để xem tài khoản người vận hành, ví dụ `WIN-PC\operator`.
 2. Nếu nâng cấp, chọn **Exit desktop** trong menu tray của bản cũ trước. Chạy Setup.exe, đồng ý quyền Administrator và nhập đúng tài khoản khi bộ cài yêu cầu. Không nhập mật khẩu.
-3. Đăng xuất rồi đăng nhập lại để quyền nhóm `DicomAgentOperators` có hiệu lực.
+3. Quyền truy cập được cấp trực tiếp theo SID của người vận hành; không cần đăng xuất.
 4. Mở **DICOM Desktop Agent** từ Start Menu.
 5. Trong PowerShell, kiểm tra:
 
@@ -108,7 +111,7 @@ File nguồn được tạo trong TEMP vì thư mục chứa SCU chỉ cấp quy
 C:\ProgramData\DicomAgent\Storage\YYYY-MM-DD\StudyUID\SeriesUID\SOPUID.dcm
 ```
 
-Ngày thư mục và thời gian lịch sử là UTC. Agent chưa có viewer hoặc xuất JPEG/PNG; muốn xem nội dung cần viewer DICOM riêng. Upload website hiện là chọn `.dcm` thủ công.
+Ngày thư mục và thời gian lịch sử là UTC. Bản 0.2.2 có preview frame đầu tiên trong màn hình thực hiện ca, và nút Done để upload file gốc; không xuất JPEG/PNG.
 
 Thử gửi lại đúng ảnh vừa tạo:
 

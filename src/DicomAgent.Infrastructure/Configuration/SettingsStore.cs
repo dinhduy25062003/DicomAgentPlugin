@@ -13,22 +13,29 @@ public sealed class DicomOptionsValidator : IValidateOptions<DicomOptions>
         return errors.Length == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }
-public sealed class SettingsStore(IOptionsMonitor<DicomOptions> dicom, IOptionsMonitor<AgentOptions> agent)
+public sealed class SettingsStore(IOptionsMonitor<DicomOptions> dicom, IOptionsMonitor<AgentOptions> agent, IOptionsMonitor<LocalApiOptions> localApi)
 {
+    private readonly SemaphoreSlim gate = new(1, 1);
     public static string FilePath => Path.Combine(AgentPaths.DataDirectory, "settings.json");
-    public AgentSettings Current => new(dicom.CurrentValue, agent.CurrentValue);
+    public AgentSettings Current => new(dicom.CurrentValue, agent.CurrentValue) { LocalApi = localApi.CurrentValue };
     public bool RestartRequired { get; private set; }
     public async Task SaveAsync(AgentSettings settings, CancellationToken ct)
     {
+        CaptureRules.Validate(settings.LocalApi);
         var errors = ConfigurationRules.Validate(settings.Dicom);
         if (errors.Length > 0) throw new ArgumentException(string.Join(" ", errors));
         var path = string.IsNullOrEmpty(settings.Dicom.StoragePath) ? AgentPaths.DefaultStorage : settings.Dicom.StoragePath;
         Directory.CreateDirectory(path);
         var probe = Path.Combine(path, ".probe-" + Guid.NewGuid().ToString("N"));
         await File.WriteAllTextAsync(probe, "", ct); File.Delete(probe);
-        var temp = FilePath + ".tmp";
-        await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }), ct);
-        File.Move(temp, FilePath, true);
-        RestartRequired = true;
+        await gate.WaitAsync(ct);
+        try
+        {
+            var temp = FilePath + ".tmp";
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }), ct);
+            File.Move(temp, FilePath, true);
+            RestartRequired = true;
+        }
+        finally { gate.Release(); }
     }
 }

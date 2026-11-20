@@ -1,6 +1,8 @@
 using DicomAgent.Application.Services;
+using DicomAgent.Application.Abstractions;
 using DicomAgent.Infrastructure;
 using DicomAgent.Infrastructure.Configuration;
+using DicomAgent.Host.Api;
 using DicomAgent.Infrastructure.Management;
 using DicomAgent.Host.Workers;
 using Microsoft.Extensions.Configuration;
@@ -14,7 +16,7 @@ var receiveTemp = Path.Combine(AgentPaths.DataDirectory, "receive-temp");
 Directory.CreateDirectory(receiveTemp);
 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(receiveTemp, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 FellowOakDicom.IO.TemporaryFile.StoragePath = receiveTemp;
-// Hold an exclusive process lease before touching the IPC endpoint or storage.
+// Hold an exclusive process lease before starting the local HTTP API or touching storage.
 using var lease = new FileStream(Path.Combine(AgentPaths.DataDirectory, "host.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = args, ContentRootPath = AppContext.BaseDirectory });
 builder.Configuration.AddJsonFile(SettingsStore.FilePath, optional: true, reloadOnChange: true);
@@ -25,7 +27,11 @@ builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Critical);
 builder.Services.AddWindowsService(o => o.ServiceName = "DicomAgent");
 builder.Services.AddSystemd();
 builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(30));
+builder.Services.AddSingleton<ICaptureRequestService, CaptureRequestService>();
+builder.Services.AddSingleton<ManagementService>();
 builder.Services.AddAgent(builder.Configuration);
+builder.Services.AddHostedService<CaptureUploadWorker>();
+builder.Services.AddHostedService<LocalApiServer>();
 builder.Services.AddHostedService<DicomReceiverWorker>();
-builder.Services.AddHostedService<ManagementServer>();
+
 await builder.Build().RunAsync();

@@ -4,11 +4,16 @@ using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using DicomAgent.Application.Models;
 using DicomAgent.Application.Services;
+using DicomAgent.Desktop.Services;
 namespace DicomAgent.Desktop.ViewModels;
 
-public sealed class MainViewModel : INotifyPropertyChanged
+public sealed partial class MainViewModel : INotifyPropertyChanged
 {
     private readonly ManagementClient client = new();
+    private readonly DesktopStartupRegistration startup = new();
+    private bool openAtLogin;
+    public bool OpenAtLogin { get => openAtLogin; set => Set(ref openAtLogin, value); }
+    public ICommand SaveStartupCommand { get; }
     private AgentSettings? loaded;
     private string message = "Open the Host service, then refresh.";
     private string status = "Disconnected";
@@ -25,6 +30,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public ICommand ValidateCommand { get; }
     public MainViewModel()
     {
+        try { OpenAtLogin = startup.IsEnabled(); } catch { OpenAtLogin = false; }
+        SaveStartupCommand = new AsyncCommand(() =>
+        {
+            try { startup.SetEnabled(OpenAtLogin); Message = OpenAtLogin ? "Đã bật mở giao diện khi đăng nhập máy." : "Đã tắt mở giao diện khi đăng nhập máy. Dịch vụ nhận ảnh vẫn chạy nền."; }
+            catch (Exception ex) { Message = "Không lưu được tùy chọn khởi động: " + ex.Message; }
+            return Task.CompletedTask;
+        });
+        InitializeCaptures();
         RefreshCommand = new AsyncCommand(RefreshAsync);
         SaveCommand = new AsyncCommand(SaveAsync);
         ValidateCommand = new AsyncCommand(() => { Validate(); return Task.CompletedTask; });
@@ -53,6 +66,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Summary = $"AE: {s.ActiveConfiguration.AeTitle}   |   {s.ActiveConfiguration.ListenAddress}:{s.ActiveConfiguration.Port}\nStorage: {s.ActiveConfiguration.StoragePath}\nReceived: {s.TotalReceivedFiles}   |   Last (UTC): {s.LastReceivedAtUtc:O}";
             Errors = string.Join(Environment.NewLine, s.RecentErrors);
             var configuration = await client.SendAsync(new("settings")); EnsureSuccess(configuration); loaded = configuration.Settings!;
+            LocalPort = loaded.LocalApi.Port.ToString(); SaasUrl = loaded.LocalApi.SaasBaseUrlTemplate;
+            AllowedOrigins = string.Join(", ", loaded.LocalApi.AllowedOrigins);
+            await RefreshCapturesAsync();
             var d = loaded.Dicom;
             AeTitle = d.AeTitle; ListenAddress = d.ListenAddress; Port = d.Port.ToString(); StoragePath = d.StoragePath;
             CallingAes = string.Join(", ", d.AllowedCallingAeTitles); RemoteAddresses = string.Join(", ", d.AllowedRemoteAddresses);
@@ -79,7 +95,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
             AllowedCallingAeTitles = Split(CallingAes),
             AllowedRemoteAddresses = Split(RemoteAddresses)
         },
-            new AgentOptions { EnableReceiver = ReceiverEnabled, EnableFileHistory = HistoryEnabled });
+            new AgentOptions { EnableReceiver = ReceiverEnabled, EnableFileHistory = HistoryEnabled })
+            { LocalApi = new() { Port = int.TryParse(LocalPort, out var localPort) ? localPort : 0, SaasBaseUrlTemplate = SaasUrl, AllowedOrigins = Split(AllowedOrigins) } };
     }
     private static string[] Split(string text) => text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     private void Validate()

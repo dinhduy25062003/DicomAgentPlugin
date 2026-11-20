@@ -32,6 +32,12 @@ sc.exe config DicomAgent obj= 'NT SERVICE\DicomAgent' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Cannot set service identity' }
 icacls $Data /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' 'NT SERVICE\DicomAgent:(OI)(CI)M' 'DicomAgentOperators:(OI)(CI)RX' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Cannot configure data ACL' }
+if ($OperatorUser) {
+    # Direct SID grants also work in the operator's current session, before group tokens refresh.
+    icacls $Data /grant "*${OperatorSid}:(OI)(CI)RX" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot configure direct operator ACL' }
+
+}
 # Keep existing customer settings on upgrade. Firewall is only opened for explicit devices.
 if (!(Test-Path "$Data/settings.json")) {
     @{ Dicom = @{ Port = $Port; AllowedRemoteAddresses = @($AllowedRemoteAddresses) } } | ConvertTo-Json -Depth 5 | Set-Content "$Data/settings.json" -Encoding UTF8
@@ -42,4 +48,5 @@ if ($AllowedRemoteAddresses.Count -gt 0) {
 }
 Set-Service DicomAgent -StartupType Automatic
 Start-Service DicomAgent
-Write-Host "Installed. Sign out/in to refresh operator membership. Desktop: $Target/desktop/DicomAgent.Desktop.exe"
+(Get-Service DicomAgent).WaitForStatus([System.ServiceProcess.ServiceControllerStatus]::Running, [TimeSpan]::FromSeconds(30))
+Write-Host "Installed. Operator access is ready immediately. Desktop: $Target/desktop/DicomAgent.Desktop.exe"

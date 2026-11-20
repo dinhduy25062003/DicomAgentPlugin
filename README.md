@@ -1,8 +1,10 @@
 # DICOM Desktop Agent
 
+Từ 0.2.2: cài xong mở UI dùng ngay, không cần đăng xuất để nhận quyền; có tùy chọn mở UI khi đăng nhập máy trong Cấu hình kết nối.
+
 Gói cài đặt **Windows Setup.exe** và **Ubuntu/Debian .deb**: xem [PACKAGES.md](docs/PACKAGES.md).
 
-Agent nhận ảnh qua mạng LAN, lưu Part 10 `.dcm` và lịch sử SQLite, chạy độc lập với website và Internet. Nhân viên mở thư mục, chọn file để upload website bằng tay. MVP không có tự động upload, DICOM viewer hoặc chuyển ảnh JPEG/PNG.
+Bản **0.2.2** nhận request từ web trên cùng máy qua `http://127.0.0.1:17890`, cố định tenant từ request đầu tiên, lưu ca trong JSON, nhận/chọn DICOM và gửi multipart lên SaaS khi bấm Done. Ba màn hình: quản lý request, thực hiện dịch vụ (có preview frame đầu tiên), cấu hình kết nối. [Hướng dẫn và hợp đồng web → local → SaaS](docs/LOCALHOST-WEB-SAAS.md). Bộ nhận DICOM/lưu ảnh vẫn hoạt động khi không có Internet; không tự chuyển JPEG/PNG.
 
 ## Kiến trúc
 
@@ -11,11 +13,14 @@ Máy X-quang -- C-ECHO / C-STORE TCP --> Host (.NET Worker)
                                        |-- Storage SCP (fo-dicom)
                                        |-- Ghi file tạm -> .dcm
                                        |-- SQLite / EF Core
-Desktop (Avalonia MVVM) -- IPC cục bộ ---|
-Nhân viên -- chọn .dcm từ Storage --> Website (upload thủ công)
+Desktop (Avalonia MVVM) -- HTTP 127.0.0.1 ---|
+Web cùng máy -- HTTP loopback + Authorization/TenantName --> Host
+Host -- request JSON / phiên nhận ảnh / Done multipart --> SaaS IrAttachments
 ```
 
-Domain chứa entity; Application chứa contracts, validation, đường dẫn và client quản trị. Infrastructure triển khai DICOM, file storage, SQLite, cấu hình và IPC server. Host là composition root duy nhất khởi chạy Receiver. Desktop chỉ tham chiếu Application, không dùng fo-dicom/EF và không chiếm DICOM port. Host và Desktop là hai tiến trình độc lập.
+Luồng API: `CaptureRequestsController` (Host) → `ICaptureRequestService` / `CaptureRequestService` (Application) → các interface repository, token store, DICOM preview, upload client và queue (implementation trong Infrastructure). `CaptureUploadWorker` ở Host chạy nghiệp vụ upload nền. Application không tham chiếu Infrastructure, ASP.NET Core hoặc fo-dicom.
+
+Domain chứa entity; Application chứa contracts, validation, đường dẫn và client quản trị. Infrastructure triển khai DICOM, JSON repository, bảo vệ token, HTTP upload, file storage, SQLite, cấu hình và các adapter quản trị HTTP. Host là composition root duy nhất khởi chạy Receiver. Desktop chỉ tham chiếu Application, không dùng fo-dicom/EF và không chiếm DICOM port. Host và Desktop là hai tiến trình độc lập.
 
 ```text
 src/
@@ -49,7 +54,7 @@ dotnet build DicomAgent.sln -c Release --no-restore
 dotnet test DicomAgent.sln -c Release --no-build
 ```
 
-Trên môi trường hạn chế process/MSBuild, thêm `-m:1 -p:UseSharedCompilation=false` lúc build/test. Test runner và integration tests cần quyền tạo TCP/Unix socket loopback; sandbox chặn socket không phải lỗi Receiver.
+Trên môi trường hạn chế process/MSBuild, thêm `-m:1 -p:UseSharedCompilation=false` lúc build/test. Test runner và integration tests cần quyền tạo cổng TCP loopback; sandbox chặn TCP không phải lỗi Receiver.
 
 ## Chạy trực tiếp trên Ubuntu
 
@@ -81,7 +86,7 @@ dotnet run --project src/DicomAgent.Host
 dotnet run --project src/DicomAgent.Desktop
 ```
 
-Chưa cài group `DicomAgentOperators`: IPC Windows chỉ cho identity đang chạy Host, Administrators và SYSTEM. Sau cài đặt, sử dụng group operator.
+Khi chạy từ source, Host và Desktop phải dùng cùng DICOM_AGENT_DATA. Host tự ghi desktop-connection.json để Desktop gọi HTTP đúng port; sau cài đặt file này được cấp quyền đọc cho operator.
 
 ## Cấu hình Receiver
 
@@ -145,17 +150,18 @@ Một Host sở hữu một data directory và storage root; không chạy hai i
 ## Sử dụng Desktop
 
 1. Cài/chạy Host trước. Mở Desktop bằng operator đã được cấp quyền.
-2. **Dashboard**: Running/Stopped/Error, cấu hình đang chạy, tổng số file theo history, lần nhận cuối UTC và 20 lỗi gần nhất trong phiên Host. Khi DB không truy cập được, dashboard dùng thống kê file của root hiện hành.
-3. **Settings**: sửa AE, IP, port, thư mục, allowlists, association/size limits, bật receiver/history. Browse chọn thư mục. Validate kiểm tra format; Save còn kiểm tra quyền ghi từ identity Host.
-4. Save → restart service bằng lệnh OS bên dưới → Refresh. Refresh sẽ nạp lại fields từ Host, nên lưu phần chỉnh sửa trước.
-5. **Received files**: tối đa 100 file mới nhất, thời gian UTC, UID study/series/SOP, modality, size và path. Chọn dòng rồi Open file location hoặc Copy file path.
-6. Trên website, dùng thao tác chọn file `.dcm` và upload thủ công. Trên Windows, bấm X đưa UI xuống system tray; menu Exit desktop thoát giao diện. Đóng UI không dừng Host.
+2. **Quản lý request**: request từ web tự cập nhật, tìm khách/đối tượng/dịch vụ, lọc trạng thái, bấm tên xem chi tiết, Thực hiện hoặc xóa có xác nhận.
+3. **Thực hiện dịch vụ**: bật nhận DICOM cho một ca, hoặc chọn file/thư mục; xem danh sách ảnh và preview frame đầu tiên, đối chiếu PatientName/PatientID/Study, bỏ ảnh không dùng và bấm Done để upload SaaS.
+4. **Cấu hình kết nối**: trạng thái receiver, AE/IP/port/storage/allowlists, dung lượng/kết nối tối đa và API localhost/SaaS. Lưu xong restart service rồi Làm mới; Làm mới sẽ nạp lại các trường cấu hình từ Host.
+5. Tenant từ request đầu tiên được giữ cố định qua restart; app không cần login riêng. [Contract, mẫu fetch và các trạng thái lỗi upload](docs/LOCALHOST-WEB-SAAS.md).
+6. Trên Windows, bấm X đưa UI xuống system tray; menu Exit desktop thoát giao diện. Đóng UI không dừng Host hoặc API localhost.
 
-IPC: Windows named pipe `DicomAgent.Management.v1`, ACL cho service/current user, Administrators, SYSTEM và `DicomAgentOperators`, deny Network SID. Linux Unix socket `management.sock` mode `0660`, parent data `2750` do service sở hữu/group operator. OS group membership là authentication/authorization; không có token/password plaintext, public HTTP API hay CORS. Website thông thường không kết nối được IPC này. Operator có quyền xem dữ liệu và quản trị Agent; chỉ thêm người được tin cậy. Không bảo vệ được máy đã bị chiếm quyền bởi user quản trị.
+Web và Desktop đều gọi HTTP tại `127.0.0.1:17890`; không có Unix socket, named pipe hoặc WebSocket. Web dùng `/api/capture-requests` với Authorization/TenantName; Desktop dùng `/api/management/*` với khóa local tự tạo trong `desktop-connection.json`. Endpoint quản trị không cho browser Origin truy cập; file kết nối chỉ đọc được bởi operator, admin và service. Cài bằng sudo/Setup tự cấp quyền ngay cho phiên hiện tại.
+
 
 ## Cài Windows
 
-Setup Windows 0.1.1 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
+Setup Windows 0.2.2 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
 
 
 PowerShell tại root repository:
@@ -170,7 +176,7 @@ Restart-Service DicomAgent
 & "$env:ProgramFiles/DicomAgent/desktop/DicomAgent.Desktop.exe"
 ```
 
-Host chạy identity ảo `NT SERVICE\DicomAgent`, automatic startup, không dùng LocalSystem để nhận DICOM. Installer bảo vệ data bằng ACL; group operator chỉ đọc data, ghi cấu hình qua IPC. Sign out/in sau khi thêm group. Firewall chỉ được thêm khi có explicit IP allowlist, chỉ profile Domain/Private; không tự mở Public. Nếu dùng port/IP khác cấu hình hiện có, kiểm tra settings và firewall khớp nhau; installer giữ settings cũ lúc upgrade. Custom storage cần cấp Modify cho service và Read cho operator.
+Host chạy identity ảo `NT SERVICE\DicomAgent`, automatic startup, không dùng LocalSystem để nhận DICOM. Installer bảo vệ data bằng ACL; operator được cấp quyền đọc data trực tiếp theo SID và ghi cấu hình qua HTTP localhost, không cần đăng xuất. Firewall chỉ được thêm khi có explicit IP allowlist, chỉ profile Domain/Private; không tự mở Public. Nếu dùng port/IP khác cấu hình hiện có, kiểm tra settings và firewall khớp nhau; installer giữ settings cũ lúc upgrade. Custom storage cần cấp Modify cho service và Read cho operator.
 
 ```powershell
 ./deploy/windows/uninstall.ps1
@@ -249,7 +255,7 @@ dotnet build tools/DicomAgent.Scu -c Release
 python3 tools/smoke-published-linux.py
 ```
 
-Script dùng cổng loopback/dữ liệu tổng hợp tạm thời, chạy Host self-contained, C-ECHO/C-STORE/duplicate, kiểm tra DB/hash/IPC rồi SIGTERM; không cài service.
+Script dùng cổng loopback/dữ liệu tổng hợp tạm thời, chạy Host self-contained, C-ECHO/C-STORE/duplicate, kiểm tra DB/hash/HTTP rồi SIGTERM; không cài service.
 
 Host áp dụng migration khi khởi động. Migration `InitialHistory` và snapshot có trong source, không dùng `EnsureCreated` cho production. Xem [báo cáo kiểm chứng](docs/VERIFICATION.md) để biết môi trường và ranh giới đã/chưa test. CI có matrix Windows/Linux, nhưng workflow chỉ được thực thi khi repository được đưa lên GitHub.
 
@@ -281,7 +287,7 @@ Host single-file có native SQLite được extract; service Linux cấu hình e
 | Không kết nối được | ListenAddress là interface tồn tại, firewall LAN và IP destination; không dùng `127.0.0.1` khi nhận từ máy khác. |
 | C-STORE thất bại | Quyền ghi, dung lượng đĩa, UID bắt buộc, size limit, cùng UID khác dữ liệu. Không xóa ảnh cũ để thử lại. |
 | File có, history thiếu | Xem log, phục hồi quyền/schema DB hoặc dung lượng; chờ reconciliation 30 giây/restart. File hoàn chỉnh được giữ. |
-| UI disconnected | Host đang chạy, cùng `DICOM_AGENT_DATA`, group operator sau login lại, quyền socket/pipe; không chạy UI dưới identity không được cấp quyền. |
+| UI disconnected | Host đang chạy, cùng `DICOM_AGENT_DATA`, quyền đọc desktop-connection.json và port HTTP local; không chạy UI dưới identity không được cấp quyền. |
 | Settings chưa áp dụng | Restart service, kiểm tra biến môi trường/CLI có ghi đè, Refresh xem active configuration. |
 | Custom storage bị chặn trên Linux | systemd `ProtectHome`/`ReadWritePaths`, owner/group và mount permissions; không giảm toàn bộ sandbox nếu chỉ cần thêm một thư mục. |
 | UI Linux không mở | Phiên đồ họa và native libraries/font phù hợp distro; service Host không cần X11/Wayland. |
@@ -290,13 +296,13 @@ Host single-file có native SQLite được extract; service Linux cấu hình e
 
 DICOM TCP thông thường **không tự có TLS**. Chỉ sử dụng trên LAN đáng tin cậy, VLAN/VPN được bảo vệ; không NAT/publish DICOM port ra Internet. IP/AE allowlist không phải xác thực mật mã, không thay TLS. Hạn chế truy cập vật lý, dùng mã hóa ổ đĩa (BitLocker/LUKS) và chính sách sao lưu/retention của phòng khám; Agent không tự xóa ảnh. SQLite chứa PatientID/PatientName và metadata y tế; bảo vệ cả DB, WAL/SHM, storage, receive-temp và backups. Log mặc định không ghi PatientID/PatientName hoặc dataset; lỗi dashboard được tóm tắt an toàn, chỉ giữ trong RAM của phiên hiện tại.
 
-Không lưu password/token, không giao tiếp cloud, không tự upload. Operator group là quyền quản trị cục bộ mạnh. Installation scripts cần admin/root để cài service/ACL, service chạy bằng tài khoản hạn chế. Runtime cần được cập nhật bản vá định kỳ theo chính sách .NET và vendor; package versions pin không phải bảo đảm đã qua audit bảo mật.
+Không lưu mật khẩu. Authorization của request được mã hóa và giữ theo từng ca, chỉ chuyển tiếp tới SaaS đã cấu hình khi người dùng bấm Done; xem [luồng localhost](docs/LOCALHOST-WEB-SAAS.md). Operator group là quyền quản trị cục bộ mạnh. Installation scripts cần admin/root để cài service/ACL, service chạy bằng tài khoản hạn chế. Runtime cần được cập nhật bản vá định kỳ theo chính sách .NET và vendor; package versions pin không phải bảo đảm đã qua audit bảo mật.
 
 Đây là implementation MVP kỹ thuật, chưa được kiểm chứng với modality thật hay quy trình lâm sàng. Cần kiểm thử chấp nhận tại phòng khám, Windows service, UI/native dependencies, thiết bị và DICOM viewer thực tế trước triển khai.
 
 ## Mở rộng Website Integration
 
-Có thể thêm adapter/outbox trong Application/Infrastructure để upload có xác thực, retry, đồng ý của khách hàng và audit. Không ghép upload vào response C-STORE hoặc làm việc nhận ảnh phụ thuộc Internet. Contract quản trị/Receiver hiện tại tách biệt để mở rộng về sau; chưa có uploader production trong MVP.
+Bản 0.2.0 có request JSON, upload thủ công qua Done, phục hồi trạng thái và quy trình đối chiếu khi kết quả upload chưa rõ. Upload tách khỏi response C-STORE; nhận ảnh không phụ thuộc Internet. Refresh JWT, đối chiếu receipt từng file và idempotency ở phía SaaS cần hợp đồng backend bổ sung; không tự retry khi có thể tạo ảnh trùng.
 
 ## Nguồn API
 

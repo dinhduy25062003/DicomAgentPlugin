@@ -3,6 +3,7 @@ using DicomAgent.Application.Abstractions;
 using DicomAgent.Application.Models;
 using DicomAgent.Application.Services;
 using DicomAgent.Infrastructure.Dicom;
+using DicomAgent.Infrastructure.Capture;
 using FellowOakDicom;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +13,7 @@ public sealed record StoreResult(string Path, bool Duplicate, bool HistoryPendin
 public sealed class InstanceConflictException() : IOException("The SOP Instance UID already exists with different content.");
 
 public sealed class InstanceStore(IInstanceRepository repository, DicomOptions options, AgentOptions agent,
-    ILogger<InstanceStore> logger, ReceiverState state)
+    ILogger<InstanceStore> logger, ReceiverState state, ICaptureRequestService captures)
 {
     // A single Host owns each storage root. Serialize commits and reconciliation, including duplicate checks.
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -22,8 +23,9 @@ public sealed class InstanceStore(IInstanceRepository repository, DicomOptions o
         await using var stream = File.OpenRead(path);
         return Convert.ToHexString(await SHA256.HashDataAsync(stream, ct));
     }
-    public async Task<StoreResult> SaveAsync(DicomFile file, CancellationToken ct)
+    public async Task<StoreResult> SaveAsync(DicomFile file, CancellationToken ct, bool associateCapture = true, CaptureSession? session = null)
     {
+        var captureSession = associateCapture ? await captures.CurrentSessionAsync(ct) : session;
         var item = MetadataExtractor.Extract(file);
         await gate.WaitAsync(ct);
         string? temp = null;
@@ -72,6 +74,15 @@ public sealed class InstanceStore(IInstanceRepository repository, DicomOptions o
                 {
                     pending = true; state.Error("File saved; history pending reconciliation.");
                     logger.LogError("History persistence failed ({ErrorType}); committed DICOM retained.", ex.GetType().Name);
+                }
+            }
+            if (captureSession is not null)
+            {
+                try { await captures.AttachAsync(captureSession.RequestId, DicomCaptureImageReader.Describe(file, target), true, ct, captureSession.Generation); }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    state.Error("DICOM saved but could not be assigned to the active request. Select it manually from storage.");
+                    logger.LogWarning("Capture association failed ({ErrorType}).", ex.GetType().Name);
                 }
             }
             return new StoreResult(target, duplicate, pending);

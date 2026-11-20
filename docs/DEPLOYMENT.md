@@ -65,4 +65,4 @@ Không chọn path qua symlink. `ProtectHome=true` chặn home directory; nên c
 
 ## Kiểm thử tại hiện trường
 
-Kiểm tra ít nhất: startup sau reboot; đóng/mở lại UI; C-ECHO; C-STORE DX/CR/CT/MR đúng transfer syntax; ảnh lớn thực tế; mất mạng/retry; duplicate; hết đĩa; DB lock/lỗi quyền; restart khi đang gửi; allowlist và firewall; quyền operator; xem file bằng viewer độc lập; upload thủ công lên website; upgrade và uninstall không mất ảnh.
+Kiểm tra ít nhất: startup sau reboot; đóng/mở lại UI; C-ECHO; C-STORE DX/CR/CT/MR đúng transfer syntax; ảnh lớn thực tế; mất mạng/retry; duplicate; hết đĩa; DB lock/lỗi quyền; restart khi đang gửi; allowlist và firewall; quyền operator; xem file bằng viewer độc lập; request web → localhost → chọn/nhận ảnh → Done upload SaaS (xem LOCALHOST-WEB-SAAS.md); upgrade và uninstall không mất ảnh.

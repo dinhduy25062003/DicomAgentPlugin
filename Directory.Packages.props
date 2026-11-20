@@ -3,13 +3,13 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageVersion Include="fo-dicom" Version="5.2.6" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.22" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.22" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Systemd" Version="8.0.1" />
-    <PackageVersion Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
     <PackageVersion Include="Avalonia" Version="11.3.7" />
     <PackageVersion Include="Avalonia.Desktop" Version="11.3.7" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.7" />

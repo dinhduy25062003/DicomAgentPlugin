@@ -1,16 +1,19 @@
 # Cài đặt và giả lập máy X-quang trên Linux
 
+Bản 0.2.2: [quản lý request, nhận/chọn DICOM và Done upload SaaS](LOCALHOST-WEB-SAAS.md). Dùng cấu hình và quy trình UI trong tài liệu này thay cho các bước Dashboard/Received files cũ bên dưới.
+
+
 Tài liệu dùng gói Ubuntu/Debian amd64, systemd, libc >= 2.34. Host chạy nền; Desktop cần phiên đồ họa. Nếu cần cài trên distro khác, phải xác nhận tương thích gói và thư viện native trước.
 
 ## 1. Chuẩn bị bộ cài
 
-Lấy `publish/installers/dicom-agent_0.1.0_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
+Lấy `publish/installers/dicom-agent_0.2.2_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
 
 Nếu chưa có gói, chạy tại root repo trên máy build có SDK theo `global.json`:
 
 ```bash
 bash deploy/linux/publish.sh
-bash deploy/linux/build-deb.sh 0.1.0
+bash deploy/linux/build-deb.sh 0.2.2
 ```
 
 Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay có thể ghi đè unit của package.
@@ -20,11 +23,10 @@ Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay
 Trên máy Linux đích, trong thư mục chứa gói:
 
 ```bash
-sudo apt install ./dicom-agent_0.1.0_amd64.deb
-sudo usermod -aG dicom-agent-operators "$USER"
+sudo apt install ./dicom-agent_0.2.2_amd64.deb
 ```
 
-Lệnh thêm group chạy từ terminal của người vận hành; nếu đang dùng root, thay `"$USER"` bằng tên tài khoản desktop cần cấp quyền. Đăng xuất rồi đăng nhập lại, sau đó:
+Gói tự cấp quyền cho tài khoản đang gọi sudo và tự bật dịch vụ. Không cần đăng xuất hoặc chạy lệnh thêm group. Mở UI từ menu **DICOM Desktop Agent** hoặc:
 
 ```bash
 id
@@ -32,7 +34,7 @@ systemctl status dicom-agent.service --no-pager
 dicom-agent-desktop
 ```
 
-Group phải có `dicom-agent-operators`; service phải `active (running)`. Nếu chưa chạy:
+Service phải `active (running)`. Quyền ACL theo UID cho phép phiên đăng nhập hiện tại kết nối ngay, kể cả danh sách group trong `id` chưa cập nhật. Nếu chưa chạy:
 
 ```bash
 sudo systemctl start dicom-agent.service
@@ -88,7 +90,7 @@ systemctl status dicom-agent.service --no-pager
 ss -ltn 'sport = :11112'
 ```
 
-Trở lại Desktop → **Refresh**, xác nhận `Running`, đúng AE/port. Loopback không cần mở firewall cho máy khác. Không cấu hình `DICOM_AGENT_DATA` tùy ý khi mở Desktop để tránh trỏ sai socket của service đã cài.
+Trở lại Desktop → **Refresh**, xác nhận `Running`, đúng AE/port. Loopback không cần mở firewall cho máy khác. Không cấu hình `DICOM_AGENT_DATA` tùy ý khi mở Desktop để tránh trỏ sai file kết nối HTTP của service đã cài.
 
 ## 5. Kiểm tra kết nối DICOM
 
@@ -174,7 +176,7 @@ ss -ltn 'sport = :11112'
 | Hiện tượng | Kiểm tra |
 |---|---|
 | UI không mở | Phiên đồ họa, native dependencies; không mở UI bằng root để thay thế việc cấp group |
-| UI Disconnected | Service, group sau đăng nhập lại, `DICOM_AGENT_DATA` và quyền socket |
+| UI Disconnected | Service, port HTTP, `DICOM_AGENT_DATA` và quyền đọc desktop-connection.json |
 | Timeout/refused | Port, listen IP, firewall, mạng máy ảo |
 | Association rejected | Called/Calling AE, IP nguồn allowlist, restart sau Save |
 | Save custom storage thất bại | Quyền service và sandbox systemd; xem hướng dẫn Prod |

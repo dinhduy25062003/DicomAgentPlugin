@@ -8,7 +8,7 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
-    <ProjectReference Include="../../src/DicomAgent.Host/DicomAgent.Host.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../src/DicomAgent.Host/DicomAgent.Host.csproj" />
     <PackageReference Include="Avalonia.Headless" />
     <ProjectReference Include="../../src/DicomAgent.Desktop/DicomAgent.Desktop.csproj" />
   </ItemGroup>

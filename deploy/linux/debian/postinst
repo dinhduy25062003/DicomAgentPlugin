@@ -4,18 +4,28 @@ if [ "$1" = configure ]; then
     getent group dicom-agent-operators >/dev/null || addgroup --system dicom-agent-operators
     id dicom-agent >/dev/null 2>&1 || adduser --system --group --home /var/lib/dicom-agent --no-create-home --shell /usr/sbin/nologin dicom-agent
     install -d -o dicom-agent -g dicom-agent-operators -m 2750 /var/lib/dicom-agent /var/lib/dicom-agent/storage
-    # Do not guess the interactive user from sudo/dpkg environment variables.
-    # An administrator explicitly grants operator group membership after installation.
-    deb-systemd-helper unmask dicom-agent.service
-    if deb-systemd-helper --quiet was-enabled dicom-agent.service; then
-        deb-systemd-helper enable dicom-agent.service
+    # sudo apt install identifies the actual desktop operator, including their existing login session.
+    operator=${DICOM_AGENT_OPERATOR_USER:-${SUDO_USER:-}}
+    if [ -z "$operator" ] && [ -n "${SUDO_UID:-${PKEXEC_UID:-}}" ]; then
+        operator=$(getent passwd "${SUDO_UID:-${PKEXEC_UID:-}}" | cut -d: -f1)
     fi
+    if [ -n "$operator" ] && [ "$operator" != root ]; then
+        operator_uid=$(id -u "$operator")
+        [ "$operator_uid" != 0 ] || exit 1
+        usermod -aG dicom-agent-operators "$operator"
+        /usr/lib/dicom-agent/configure-operator-access /var/lib/dicom-agent "$operator_uid"
+        echo "DICOM Agent access is ready for $operator; no sign out is required."
+    fi
+    # Remove only the obsolete local IPC endpoint left by older releases.
+    if [ -S /var/lib/dicom-agent/management.sock ]; then rm -f /var/lib/dicom-agent/management.sock; fi
+    deb-systemd-helper unmask dicom-agent.service
+    deb-systemd-helper enable dicom-agent.service
     deb-systemd-helper update-state dicom-agent.service
     if [ -d /run/systemd/system ]; then
         systemctl --system daemon-reload
         deb-systemd-invoke start dicom-agent.service
     fi
-    echo 'DICOM Agent installed. Grant access: sudo usermod -aG dicom-agent-operators YOUR_USER; then sign out/in.'
-    echo 'No firewall ports were opened. Customer data is retained on remove and purge.'
+    echo 'DICOM Agent installed. Open DICOM Desktop Agent from the applications menu.'
+    echo 'The receiver service starts now and at boot. No firewall ports were opened.'
 fi
 exit 0

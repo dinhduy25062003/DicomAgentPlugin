@@ -5,6 +5,9 @@ using DicomAgent.Application.Models;
 using DicomAgent.Application.Services;
 using DicomAgent.Infrastructure;
 using DicomAgent.Infrastructure.Dicom;
+using DicomAgent.Infrastructure.Capture;
+using DicomAgent.Infrastructure.Management;
+using DicomAgent.Host.Api;
 using DicomAgent.Infrastructure.Storage;
 using FellowOakDicom;
 using FellowOakDicom.Imaging;
@@ -31,17 +34,26 @@ internal sealed class TestFixture : IAsyncDisposable
         Directory.CreateDirectory(Data); Environment.SetEnvironmentVariable("DICOM_AGENT_DATA", Data);
         var values = new Dictionary<string, string?>
         {
+            ["LocalApi:Port"] = FreePort().ToString(),
             ["Dicom:ListenAddress"] = "127.0.0.1",
             ["Dicom:Port"] = FreePort().ToString(),
             ["Dicom:StoragePath"] = Path.Combine(Data, "storage"),
             ["Dicom:AeTitle"] = "DICOM_AGENT"
         }; configure?.Invoke(values);
         var services = new ServiceCollection(); services.AddLogging(b => b.SetMinimumLevel(LogLevel.Critical));
+        services.AddSingleton<ICaptureRequestService, CaptureRequestService>();
+        services.AddSingleton<ManagementService>();
         services.AddAgent(new ConfigurationBuilder().AddInMemoryCollection(values).Build());
         if (repository is not null) services.AddSingleton(repository);
         Provider = services.BuildServiceProvider();
         DicomSetupBuilder.UseServiceProvider(Provider);
     }
+    public LocalApiServer Api() => new(Provider.GetRequiredService<LocalApiOptions>(), Provider.GetRequiredService<ICaptureRequestService>(),
+        Provider.GetRequiredService<ManagementService>(), Provider.GetRequiredService<ManagementAccess>());
+    public CaptureRequestService NewCaptureService() => new(Provider.GetRequiredService<LocalApiOptions>(),
+        new JsonCaptureRequestRepository(), new RequestSecretStore(),
+        new SaasAttachmentClient(Options, Microsoft.Extensions.Logging.Abstractions.NullLogger<SaasAttachmentClient>.Instance),
+        new DicomCaptureImageReader(), new CaptureUploadQueue());
     public static int FreePort() { using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start(); return ((IPEndPoint)listener.LocalEndpoint).Port; }
     public async Task StartAsync() { await Repository.InitializeAsync(default); await Receiver.StartAsync(default); }
     public async Task<DicomStatus> SendAsync(DicomFile? file = null, string called = "DICOM_AGENT", string calling = "TEST_SCU")

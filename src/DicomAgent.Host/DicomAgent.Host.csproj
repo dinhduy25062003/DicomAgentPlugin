@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../DicomAgent.Application/DicomAgent.Application.csproj" />
     <ProjectReference Include="../DicomAgent.Infrastructure/DicomAgent.Infrastructure.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" />
