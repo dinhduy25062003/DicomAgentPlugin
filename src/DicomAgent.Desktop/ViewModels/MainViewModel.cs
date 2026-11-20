@@ -5,11 +5,37 @@ using System.Windows.Input;
 using DicomAgent.Application.Models;
 using DicomAgent.Application.Services;
 using DicomAgent.Desktop.Services;
+using Avalonia.Styling;
 namespace DicomAgent.Desktop.ViewModels;
 
 public sealed partial class MainViewModel : INotifyPropertyChanged
 {
+    private readonly DesktopThemeSettings appearance;
+    private int themeIndex;
+    public int ThemeIndex
+    {
+        get => themeIndex;
+        set
+        {
+            if (value is < 0 or > 1 || themeIndex == value) return;
+            var theme = value == 1 ? ThemeVariant.Dark : ThemeVariant.Light;
+            try
+            {
+                appearance.Save(theme);
+                if (Avalonia.Application.Current is { } app) app.RequestedThemeVariant = theme;
+                Set(ref themeIndex, value);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Message = "Không lưu được chủ đề giao diện: " + ex.Message;
+                PropertyChanged?.Invoke(this, new(nameof(ThemeIndex)));
+            }
+        }
+    }
     private readonly ManagementClient client = new();
+    private bool isApplyingSettings;
+    public bool IsApplyingSettings { get => isApplyingSettings; private set => Set(ref isApplyingSettings, value); }
+    public string StorageHelp => "Để trống để dùng " + AgentPaths.DefaultStorage + ". Khi lưu, app tự cấp quyền thư mục và khởi động lại dịch vụ; có thể cần xác thực quản trị.";
     private readonly DesktopStartupRegistration startup = new();
     private bool openAtLogin;
     public bool OpenAtLogin { get => openAtLogin; set => Set(ref openAtLogin, value); }
@@ -28,8 +54,11 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public ICommand RefreshCommand { get; }
     public ICommand SaveCommand { get; }
     public ICommand ValidateCommand { get; }
-    public MainViewModel()
+    public MainViewModel() : this(new DesktopThemeSettings()) { }
+    public MainViewModel(DesktopThemeSettings appearance)
     {
+        this.appearance = appearance;
+        themeIndex = appearance.Load() == ThemeVariant.Dark ? 1 : 0;
         try { OpenAtLogin = startup.IsEnabled(); } catch { OpenAtLogin = false; }
         SaveStartupCommand = new AsyncCommand(() =>
         {
@@ -59,26 +88,55 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public HistoryItem? Selected { get => selected; set => Set(ref selected, value); }
     public async Task RefreshAsync()
     {
+        if (IsApplyingSettings) return;
         try
         {
-            var response = await client.SendAsync(new("status")); EnsureSuccess(response);
-            var s = response.Status!; Status = s.State;
-            Summary = $"AE: {s.ActiveConfiguration.AeTitle}   |   {s.ActiveConfiguration.ListenAddress}:{s.ActiveConfiguration.Port}\nStorage: {s.ActiveConfiguration.StoragePath}\nReceived: {s.TotalReceivedFiles}   |   Last (UTC): {s.LastReceivedAtUtc:O}";
-            Errors = string.Join(Environment.NewLine, s.RecentErrors);
-            var configuration = await client.SendAsync(new("settings")); EnsureSuccess(configuration); loaded = configuration.Settings!;
-            LocalPort = loaded.LocalApi.Port.ToString(); SaasUrl = loaded.LocalApi.SaasBaseUrlTemplate;
-            AllowedOrigins = string.Join(", ", loaded.LocalApi.AllowedOrigins);
+            var response = await client.SendAsync(new("status"));
+            EnsureSuccess(response);
+            ApplyStatus(response.Status!);
+            var configuration = await client.SendAsync(new("settings"));
+            EnsureSuccess(configuration);
+            loaded = configuration.Settings!;
+            ApplyLoadedSettings(loaded);
             await RefreshCapturesAsync();
-            var d = loaded.Dicom;
-            AeTitle = d.AeTitle; ListenAddress = d.ListenAddress; Port = d.Port.ToString(); StoragePath = d.StoragePath;
-            CallingAes = string.Join(", ", d.AllowedCallingAeTitles); RemoteAddresses = string.Join(", ", d.AllowedRemoteAddresses);
-            MaxAssociations = d.MaxConcurrentAssociations.ToString(); MaxBytes = d.MaxInstanceBytes.ToString();
-            ReceiverEnabled = loaded.Agent.EnableReceiver; HistoryEnabled = loaded.Agent.EnableFileHistory;
-            var history = await client.SendAsync(new("history")); EnsureSuccess(history);
-            History.Clear(); foreach (var item in history.History!) History.Add(item);
-            Message = s.RestartRequired ? "Settings saved. Restart the operating system service to apply changes." : history.Error ?? "Connected. Showing up to 100 recent files.";
+            var history = await client.SendAsync(new("history"));
+            EnsureSuccess(history);
+            History.Clear();
+            foreach (var item in history.History!) History.Add(item);
+            Message = response.Status!.RestartRequired
+                ? "Settings saved. Restart the operating system service to apply changes."
+                : history.Error ?? "Connected. Showing up to 100 recent files.";
         }
-        catch (Exception ex) { Status = "Error / Disconnected"; Message = "Cannot read Host state. " + ex.Message; }
+        catch (Exception ex)
+        {
+            Status = "Error / Disconnected";
+            Message = "Cannot read Host state. " + ex.Message;
+        }
+    }
+
+    private void ApplyStatus(AgentStatus status)
+    {
+        Status = status.State;
+        Summary = $"AE: {status.ActiveConfiguration.AeTitle}   |   {status.ActiveConfiguration.ListenAddress}:{status.ActiveConfiguration.Port}\nStorage: {status.ActiveConfiguration.StoragePath}\nReceived: {status.TotalReceivedFiles}   |   Last (UTC): {status.LastReceivedAtUtc:O}";
+        Errors = string.Join(Environment.NewLine, status.RecentErrors);
+    }
+
+    private void ApplyLoadedSettings(AgentSettings settings)
+    {
+        LocalPort = settings.LocalApi.Port.ToString();
+        SaasUrl = settings.LocalApi.SaasBaseUrlTemplate;
+        AllowedOrigins = string.Join(", ", settings.LocalApi.AllowedOrigins);
+        var d = settings.Dicom;
+        AeTitle = d.AeTitle;
+        ListenAddress = d.ListenAddress;
+        Port = d.Port.ToString();
+        StoragePath = d.StoragePath;
+        CallingAes = string.Join(", ", d.AllowedCallingAeTitles);
+        RemoteAddresses = string.Join(", ", d.AllowedRemoteAddresses);
+        MaxAssociations = d.MaxConcurrentAssociations.ToString();
+        MaxBytes = d.MaxInstanceBytes.ToString();
+        ReceiverEnabled = settings.Agent.EnableReceiver;
+        HistoryEnabled = settings.Agent.EnableFileHistory;
     }
     private AgentSettings ReadSettings()
     {
@@ -106,15 +164,35 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }
     private async Task SaveAsync()
     {
+        if (IsApplyingSettings) return;
+        if (busy)
+        {
+            Message = "Đợi thao tác với ca hiện tại hoàn tất trước khi lưu cấu hình.";
+            return;
+        }
         try
         {
-            if (loaded is null) throw new InvalidOperationException("Refresh to connect before saving.");
-            var value = ReadSettings(); var errors = ConfigurationRules.Validate(value.Dicom);
+            if (loaded is null) throw new InvalidOperationException("Bấm Làm mới để kết nối trước khi lưu.");
+            var value = ReadSettings();
+            var errors = ConfigurationRules.Validate(value.Dicom);
             if (errors.Length > 0) throw new ArgumentException(string.Join(" ", errors));
-            EnsureSuccess(await client.SendAsync(new("save", value)));
-            Message = "Saved. Restart DicomAgent / dicom-agent.service to apply changes.";
+            CaptureRules.Validate(value.LocalApi);
+            IsApplyingSettings = true;
+            busy = true;
+            NotifyCapture();
+            Message = "Đang lưu và áp dụng cấu hình. Xác thực quản trị nếu hệ điều hành yêu cầu; dịch vụ sẽ tự khởi động lại.";
+            await new InstalledSettingsUpdater().ApplyAsync(value);
+            IsApplyingSettings = false;
+            await RefreshAsync();
+            Message = "Đã lưu và áp dụng cấu hình. Dịch vụ đã sẵn sàng, không cần chạy lệnh. Nếu đang thực hiện một ca, bấm Thực hiện / Nhận ảnh để nhận tiếp.";
         }
-        catch (Exception ex) { Message = "Save failed. " + ex.Message; }
+        catch (Exception ex) { Message = "Không lưu được cấu hình. " + ex.Message; }
+        finally
+        {
+            IsApplyingSettings = false;
+            busy = false;
+            NotifyCapture();
+        }
     }
     private static void EnsureSuccess(ManagementResponse response) { if (!response.Success) throw new InvalidOperationException(response.Error); }
     private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null)

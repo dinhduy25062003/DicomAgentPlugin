@@ -16,8 +16,6 @@ public sealed class SaasAttachmentClient(DicomOptions dicom, ILogger<SaasAttachm
             using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = Timeout.InfiniteTimeSpan };
             using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(new Uri(serverUrl), "api/IrAttachments"));
             message.Headers.Authorization = AuthenticationHeaderValue.Parse(authorization);
-            message.Headers.Add("TenantName", request.TenantName);
-            message.Headers.Add("Idempotency-Key", request.Id.ToString());
             using var form = new MultipartFormDataContent(); message.Content = form;
             form.Add(new StringContent(request.Info.ResId.ToString()), "ResId");
             form.Add(new StringContent(request.Info.ResModel), "ResModel");

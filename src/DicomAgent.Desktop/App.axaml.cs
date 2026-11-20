@@ -4,12 +4,17 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform;
 using DicomAgent.Desktop.Views;
+using DicomAgent.Desktop.Services;
 using DicomAgent.Desktop.ViewModels;
 namespace DicomAgent.Desktop;
 public sealed partial class App : Avalonia.Application
 {
     private TrayIcon? trayIcon;
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+        RequestedThemeVariant = new DesktopThemeSettings().Load();
+    }
     public override void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

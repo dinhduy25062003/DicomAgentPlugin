@@ -156,3 +156,89 @@ Theo yêu cầu mới, đã xóa ManagementServer/ManagementWire/UnixOperatorPer
 `dotnet test DicomAgent.sln -c Release`: 30 unit + 31 integration = 61 pass, build không warning/error. Có test private HTTP auth/CORS, HTTP import file >64KiB, đọc danh sách song song khi import chưa xong, HTTP reconnect/restart và dữ liệu request/token riêng tư. Kiểm thử ACL được chuyển sang file kết nối HTTP; không tạo socket quản trị.
 
 Đóng gói cuối 0.2.2 (HTTP-only): Windows payload và Debian md5sums khớp publish; helper/acl dependency/postinst nhận SUDO_USER có trong deb. apt-get -s xác nhận nâng 0.2.1→0.2.2 không thiếu dependency trên máy hiện tại. Binary Linux self-contained pass web capture HTTP + desktop management HTTP + chặn Origin quản trị + không tạo Unix socket + SIGTERM. Logic postinst chọn tài khoản sudo/cấp ACL/enable-start service đã chạy mô phỏng với các thao tác root được thay bằng shim, ACL thực chạy trên thư mục tạm. Chưa thực thi cài root thật hoặc Windows runtime từ phiên agent.
+
+
+## Chặn trùng ca new 0.2.3 — 20/11/2026
+
+- `CaptureRequestService.ReceiveAsync` chặn UUID mới khi đã có request `new` cùng ResModel/ResId/PartnerId; trả CaptureConflictException → HTTP409. Chỉ trạng thái new tham gia điều kiện; ca done vẫn cho phép tạo ca mới có UUID/token riêng.
+- Kiểm tra và lưu JSON dùng chung semaphore; hai HTTP request đồng thời chỉ tạo một ca new. Rule có hiệu lực sau reload, cả khi không gửi Idempotency-Key và khi các trường hiển thị khác nhau.
+- Gửi lại cùng Idempotency-Key và cùng body vẫn gia hạn token cho ca cũ, giữ ảnh/trạng thái. Xóa ca new cho phép tạo lại; ca done và token cũ được giữ nguyên.
+- `dotnet test DicomAgent.sln -c Release`: 39 unit + 33 integration = 72 pass, không warning/error. Có test HTTP done→new→409, concurrency, numeric/string PartnerId, các trường của bộ ba thay đổi, reload/delete và token idempotency.
+
+Đóng gói 0.2.3: Setup Windows và deb amd64 build thành công, payload/checksum khớp publish. Binary Host Linux self-contained đã chạy kiểm tra HTTP thật: new→409, seed trạng thái done khi Host dừng rồi restart→201 ca new→409; UUID và token ca cũ/mới tách biệt. Windows chưa cài thực tế; không cần migration JSON.
+
+
+## Tổ chức lại code và UI 0.2.4 — 20/11/2026
+
+- Refactor giữ nguyên logic nghiệp vụ: `CaptureRequestService` tách bước state machine rõ (receive/recover/queue/upload/resolve), `LocalApiServer` tách guard pipeline ra method riêng, Desktop ViewModel tách trạng thái capture ra `MainViewModel.Captures.cs`. Không đổi API contract, 409, idempotency, token theo request, tenant binding, phân loại upload hay storage.
+- Giao diện Desktop làm mới (3 tab giữ nguyên bindings/handler): palette xanh đậm, card/pill theo trạng thái qua `StatusBrushConverter`, empty state rõ, placeholder khi chưa chọn request, nútWrapPanel xuống dòng được ở cửa sổ nhỏ. Render kiểm tra qua Avalonia headless, 3 tab chụp PNG ở `/tmp/da-screens/`.
+- Bổ sung 4 unit test Application: phục hồi restart upload→review, chặn ảnh dùng chung 2 ca + attach lặp bỏ qua, 8 luồng receive đồng thời chỉ tạo 1 ca, ca done chặn bỏ từng ảnh nhưng xóa được cả ca.
+- Review adversarial nhiều chiều trên diff tìm thấy 1 regression refactor thật: `SequenceEqual` so mảng `Files` theo reference khiến poll 2 giây luôn coi là "thay đổi", list rebuild liên tục (scroll reset). Đã khôi phục so sánh JSON-serialize như HEAD; build/test lại xanh.
+- `dotnet test DicomAgent.sln -c Release`: 43 unit + 33 integration = 76 pass, không warning/error.
+- Đóng gói 0.2.4: `publish/installers/dicom-agent_0.2.4_amd64.deb` và `DicomAgent-0.2.4-win-x64-Setup.exe` build từ source cuối (payload timestamp khớp lượt publish sau fix), SHA256SUMS cập nhật và verify toàn bộ pass. makensis chạy từ bản extract gói `nsis`+`nsis-common` 3.10 vào `/tmp/nsis-root` (máy thiếu sudo; `MAKENSIS`/`NSISDIR` override, không cài hệ thống).
+- Chưa kiểm chứng: cài/gỡ Windows thật, cài root thật trên Linux, nâng cấp 0.2.3→0.2.4 trên máy có dữ liệu thật (logic giữ nguyên nên không cần migration; vẫn nên thử trên máy thử trước khi ra máy chụp chính).
+
+
+## Redesign giao diện light theme + sidebar 0.2.5 — 20/11/2026
+
+- Redesign thật của cả ba màn hình theo yêu cầu: App chuyển sang FluentTheme Light (App.axaml), token màu sáng (#F4F8FC nền, #FFFFFF card, #EAF3FF tint, #2F6FC2 nhấn, chữ #243B53, viền #DCE7F3), bo góc 8–12px, shadow tiết chế, font Inter hỗ trợ tiếng Việt, nhịp spacing 8px.
+- Tab ngang thay bằng sidebar trái (RadioButton GroupName Nav + TabVisibilityConverter hai chiều với SelectedTab): logo răng vector nét mảnh, mục đang chọn nền tint + chữ nhấn, ActiveCapture ở đáy sidebar. Header riêng cho từng trang: tiêu đề + mô tả, dot trạng thái kết nối (StatusDotConverter: Running xanh, Stopped xám, Error đỏ), badge tenant, nút Làm mới gọn.
+- Quản lý yêu cầu: toolbar tìm kiếm + lọc, hàng tiêu đề cột thẳng hàng với dòng dữ liệu, badge trạng thái mềm (nền tint + chữ màu qua StatusPillBackgroundConverter), thời gian gọn dd/MM/yyyy HH:mm (UTC ghi ở tiêu đề cột), Thực hiện nổi bật, Xóa thứ cấp đỏ nhạt (vẫn có hộp xác nhận như cũ), empty state có icon + hướng dẫn.
+- Thực hiện dịch vụ: card thông tin ca ưu tiên bệnh nhân, ResId/ResModel/PartnerId xuống dòng phụ caption, toolbar nhóm nút, danh sách ảnh + preview lớn nền well trung tính, footer giữ nguyên checkbox đối chiếu + Done và panel review hai lựa chọn.
+- Cấu hình: nhóm thành 5 card (trạng thái, máy chụp DICOM với helper phân biệt IP máy cài app / IP máy chụp, lưu trữ, web/SaaS với Expander gộp lỗi gần đây và origin bổ sung, giao diện Desktop), nút Kiểm tra/Lưu nhất quán, cảnh báo restart giữ nguyên.
+- Không đổi logic: mọi bindings, command, handler, API call, trạng thái và luồng confirm giữ nguyên; chỉ App.axaml RequestedThemeVariant Dark→Light và MainWindow.axaml viết lại + 5 converter nhỏ mới (TabVisibility, StatusDot, StatusPillBackground, MessageVisibility, StatusBrush đổi màu cho tông sáng). DesktopTests cập nhật assert nav từ TabControl sang 3 RadioButton sidebar (không phải che regression — cấu trúc nav đổi theo thiết kế được yêu cầu; vẫn kiểm tra 3 mục, trạng thái chọn và chụp 3 tab).
+- Render kiểm tra headless: trước `/tmp/da-before/`, sau `/tmp/da-after/` (3 tab mỗi đợt). Tự xem và sửa 4 vòng: StrokeLineJoin/StrokeLineCap không tồn tại trên Shape, StringFormat đầu {0} cần escape {}, theme variant Dark làm control sáng lẫn tối, nút mặc định trắng chữ trắng → ép style Button tông sáng.
+- `dotnet test DicomAgent.sln -c Release`: 43 unit + 33 integration = 76 pass.
+- Đóng gói 0.2.5: deb + Setup.exe build từ source cuối (payload 15:06 khớp publish), SHA256SUMS verify toàn bộ pass. makensis vẫn chạy từ /tmp/nsis-root.
+- Chưa kiểm chứng: chạy UI thật có chuột/bàn phím trên Windows/Linux desktop, hover/selected thực tế, cửa sổ ở đúng MinWidth 980 (bố cục dùng WrapPanel + ScrollViewer nên dự kiến không tràn), cài/gỡ thật cả hai OS.
+
+Trạng thái hover bổ sung 0.2.5 (cùng ngày): người dùng phản hồi hover cũ trắng mờ khó nhìn. Thêm :pointerover/:pressed cho Button: nút thường → nền xanh nhạt #D8E8F9 (pressed #C6DDF4), nút primary → xanh đậm #265D9F (pressed #1F4E86), nút Xóa → đỏ nhạt #F8E9EB. DesktopTests mô phỏng hover qua MouseMove headless và chụp screen-hover.png xác nhận primary đậm hơn rõ khi hover. Publish và build lại cả hai installer 0.2.5 từ source mới (payload 15:20), SHA256SUMS thay hash 0.2.5 mới, verify pass.
+
+
+## Chữ trắng trên nút hover/pressed 0.2.6 — 20/11/2026
+
+- Tái hiện regression bằng mouse event headless: primary hover có nền #265D9F nhưng caption thực tế là Black dù trạng thái thường là White. Test mới fail trước khi sửa.
+- Đặt Foreground #FFFFFF trực tiếp trên ContentPresenter ở hai trạng thái primary:pointerover và primary:pressed để ghi đè foreground tương tác của Fluent theme. Màu nền giữ nguyên #265D9F / #1F4E86; không đổi nghiệp vụ hoặc layout.
+- DesktopTests luôn kiểm tra caption White ở normal/hover/pressed và nền đúng ở hover/pressed, độc lập biến chụp ảnh. MouseUp ngoài nút để không thực hiện hành động nghiệp vụ. Test dùng data directory tạm để không kết nối Host đang cài hoặc đọc request/bệnh nhân thật.
+- Baseline trước sửa: 43 unit + 33 integration pass. Sau sửa: 43 unit + 33 integration = 76 pass, build không warning/error. Đã xem ảnh hover/pressed synthetic tại /tmp/dicom-hover-fixed-0.2.6.
+- Tăng version lên 0.2.6 để tránh apt giữ payload 0.2.5 cũ khi nhiều bộ cài trùng version. Source thay đổi UI và version; các thay đổi có sẵn trong working tree được giữ nguyên.
+
+Đóng gói 0.2.6: cả Setup và deb build từ source cuối, Windows payload và Debian md5sums khớp publish, DLL Desktop trong deb đúng bản mới. SHA256SUMS cập nhật. apt-get -s nhận nâng 0.2.5→0.2.6 thay vì bỏ qua cùng version. Chưa cài/gỡ Windows thực tế và chưa áp dụng gói bằng sudo trên máy người dùng; cần thoát UI cũ, cài 0.2.6 rồi mở lại.
+
+## Theme sáng/tối song song 0.2.7 — 20/11/2026
+
+- Thêm hai palette Light/Dark trong `Themes/Colors.axaml`, dùng DynamicResource trên cả ba trang, sidebar, card, trường nhập, ảnh preview, cảnh báo và các trạng thái tương tác. FluentTheme theo lựa chọn ứng dụng; cửa sổ xác nhận kế thừa theme.
+- Cấu hình kết nối → Giao diện Desktop → Chủ đề màu: Sáng/Tối, áp dụng ngay. Lưu riêng theo tài khoản tại appearance.json trong LocalApplicationData (Windows) hoặc XDG_CONFIG_HOME/~/.config (Linux), nạp lại khi mở app. Mặc định Sáng; file thiếu/hỏng trở về Sáng. Không gọi Host hay cần restart dịch vụ để đổi theme.
+- Badge trạng thái nhận ActualThemeVariant qua MultiBinding để tự đổi màu trên request đang hiển thị. Tách màu accent chữ/icon và màu nền nút để theme tối có accent sáng mà nút chính vẫn có chữ trắng đủ rõ. Foreground trên ContentPresenter của nút thường/primary/danger được đặt rõ cho hover và pressed.
+- Restore → Release build → test toàn solution: 43 unit + 34 integration = 77 pass, không warning/error. Test UI chọn ComboBox Sáng→Tối→Sáng, kiểm tra màu nền cửa sổ, badge, caption/nền primary normal/hover/pressed, caption/nền nút thường khi hover, đồng thời kiểm tra sidebar/tray cũ. Test lưu lựa chọn qua instance mới, JSON hỏng và ghi lại không để file tạm. Toàn bộ test theme dùng thư mục cấu hình/data tạm.
+- Đã render và xem ảnh ba trang cùng phần cấu hình Chủ đề màu ở cả hai theme tại `/tmp/dicom-themes-0.2.7/`. Kiểm tra hover/pressed vẫn giữ chữ trắng trên xanh đậm. Đây là kiểm tra Avalonia headless trên Linux; chưa thao tác/cài thực tế trên Windows hoặc cài root Linux.
+- Giữ nguyên API, token upload theo request, tenant, logic nhận/gán DICOM, chặn ca new trùng, luồng Done/review và định dạng dữ liệu Host. Các thay đổi có sẵn trong working tree được giữ lại.
+
+Đóng gói 0.2.7: Windows Setup và Debian amd64 được build từ source cuối. Trích xuất đối chiếu 417 file Windows và 217 file Linux với publish: khớp toàn bộ; 225 md5sums của deb và SHA256SUMS các installer đều pass. apt-get -s nhận nâng 0.2.6→0.2.7, không thêm/xóa package khác. Chưa thực thi cài/gỡ thật trong phiên agent.
+
+## Lưu cấu hình và tự áp dụng 0.2.8 — 20/11/2026
+
+- Tái hiện lỗi trên service đang cài: lưu nguyên cấu hình (storage trống) thành công; chọn `/home/duynguyen/DicomImg/` trả lỗi chung, settings cũ không thay đổi. Nguyên nhân: service chạy bằng `dicom-agent`, home có quyền hạn chế và unit bật `ProtectHome=true`.
+- Theo yêu cầu mới, nút Lưu Desktop không yêu cầu chạy lệnh thủ công: tạo tệp cấu hình tạm riêng, gọi Host đã cài bằng polkit (Linux) hoặc UAC (Windows). Helper chỉ chạy khi có quyền quản trị, không lấy data path từ môi trường caller, chỉ nhận input tạm của app, dùng lease chống hai lượt áp dụng song song và không chứa token SaaS.
+- Linux: grant ACL cho đúng thư mục ảnh và quyền traverse cho service; grant đọc theo PKEXEC_UID cho operator. Với thư mục home, dùng ProtectHome=tmpfs + BindPaths/ReadWritePaths đúng thư mục, không mở toàn bộ home. Thêm pkexec dependency và policy chỉ khớp Host --apply-settings. Windows: grant Modify cho NT SERVICE\DicomAgent trên đúng thư mục bằng icacls; thao tác service qua PowerShell hệ thống, không hiện console.
+- Helper chặn áp dụng khi đang upload SaaS; chuẩn bị ACL/sandbox, dừng service để drain association, lưu JSON cùng schema, sửa owner settings Linux, start service, rồi gọi management storage-check để chính service kiểm tra ghi trong sandbox thực. Fail ở bước ghi/start/probe: dừng service mới, phục hồi settings và sandbox/ACL trước đó, start lại service cũ. Không di chuyển/xóa ảnh, request, tenant hay token.
+- Desktop tạm khóa cấu hình/thao tác capture và dừng polling trong lúc áp dụng, tự kết nối lại sau khi service sẵn sàng. Cần bật nhận lại cho ca đang thực hiện sau restart, như semantics restart hiện có. Theme/autostart theo user không cần elevation.
+- Endpoint web và API management save cũ giữ nguyên. Thêm operation storage-check chỉ trong management có local key, không ghi settings hay đặt RestartRequired. Receiver vẫn dùng snapshot từng tiến trình, không hot-mutate options giữa association.
+- Kiểm chứng giới hạn: không thể chạy quyền root/polkit thật từ phiên agent có NoNewPrivs, chưa cài/chạy UAC thật trên Windows. Các thao tác ACL/service của helper được kiểm thử bằng runner giả lập; quyền write probe, HTTP management và Host process thường được kiểm thử thật trên data tạm. Policy XML và systemd unit/drop-in mẫu đã validate. Cần thử thao tác xác thực thực tế sau khi cài bộ cài mới.
+
+Kết quả 0.2.8: restore → build Release → test toàn solution tuần tự; 43 unit + 43 integration = 86 pass, không warning/error. Chín test mới kiểm tra thứ tự prepare/stop/write/start, ACL operator, rollback khi start lỗi, rollback sau probe của service mới lỗi (service cũ phải thực sự được stop/start lại), từ chối storage/input không phù hợp và symlink input, Host command từ chối tài khoản không nâng quyền, storage-check không đổi settings/restart flag, và save lỗi vẫn giữ config/Receiver C-ECHO hoạt động. Đã render/xem UI dark và test màu light/dark/hover/pressed như bản trước tại /tmp/dicom-settings-0.2.8.
+
+Đóng gói 0.2.8 hoàn tất: 417 file Windows và 217 file Linux trích xuất từ bộ cài khớp publish cuối; 226 checksum Debian pass, pkexec dependency và policy polkit có trong deb. SHA256SUMS của toàn bộ installer đã xác minh. Linux Host self-contained nhận đúng --apply-settings và từ chối chạy bằng user chưa nâng quyền, không khởi động Host thường. apt-get -s nhận nâng 0.2.7→0.2.8, không thêm/xóa package khác trên máy hiện tại. Bộ cài chưa được áp dụng lên máy từ phiên agent.
+
+## Một lệnh release Windows + Linux — 20/11/2026
+
+- Thêm deploy/release.sh: preflight toolchain/SDK, tìm NSIS ở PATH/override/cache user cố định, khóa chống hai lượt build đồng thời, tự tăng patch và đồng bộ version project/script/tài liệu hiện hành. Restore → build → test tuần tự; clean đúng thư mục binary publish, publish mới từng RID rồi tạo cả Setup.exe và deb. Trích xuất đối chiếu từng file với publish, xác minh Debian md5sums và ghi SHA256SUMS sau khi thành công.
+- NSIS của máy build đã chuẩn bị tại ~/.cache/dicom-agent-build/nsis (không phụ thuộc /tmp). Preflight đã thử: version cũ, compiler thiếu và release khác đang giữ lock đều dừng trước khi sửa version. bash -n và --help pass. Không tự cài app, chạy lệnh sudo, restart service, commit hoặc push.
+- Lượt 0.2.9 dừng trước publish vì hai integration test upload fail. Xác minh source upload đã bỏ header TenantName/Idempotency-Key; người dùng xác nhận giữ thay đổi đó và cập nhật test theo hợp đồng mới. Test upload kiểm tra hai header không tồn tại, tenant multipart vẫn đúng, Authorization vẫn riêng cho từng request sau reload; tương quan request bằng ResId trong body. Hợp đồng web gọi localhost vẫn giữ hai header như trước.
+- Chạy lại chính lệnh bash deploy/release.sh tự tăng sang 0.2.10: restore/build sạch, 43 unit + 43 integration = 86 pass. Không bỏ qua test lỗi hoặc tự retry upload.
+
+Release một lệnh 0.2.10 hoàn tất thành công (exit 0): tạo cả Windows Setup.exe và Linux deb từ publish sạch; trích xuất so payload và Debian md5sums pass; SHA256SUMS cập nhật. Lệnh chạy trực tiếp không cần MAKENSIS/NSISDIR từ /tmp, dùng cache NSIS cố định. Lần release tiếp theo mặc định tăng 0.2.10→0.2.11.
+
+## Hướng dẫn lệnh thao tác 0.2.11 — 20/11/2026
+
+Thêm docs/LENH-RELEASE-VA-GIA-LAP.md: lệnh release tự tăng patch, nơi lấy bộ cài, cấu hình loopback và chọn request trước khi nhận, lệnh echo/generate/store gửi một ảnh thử, kết quả mong đợi và lệnh build lại simulator Linux khi cần. Kiểm tra đường dẫn script/simulator tồn tại và Markdown đóng đủ code fence. Chạy release.sh hoàn tất 0.2.11: 43 unit + 43 integration pass, cả Setup/deb đã tạo và xác minh payload/checksum. Không sửa logic ứng dụng trong lượt thêm tài liệu này.

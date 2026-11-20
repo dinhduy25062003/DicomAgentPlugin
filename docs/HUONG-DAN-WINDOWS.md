@@ -7,7 +7,7 @@ Tài liệu dành cho Windows x64, bao gồm Windows chạy trong máy ảo. Age
 
 ## 1. Chuẩn bị
 
-- Gói `DicomAgent-0.2.2-win-x64-Setup.exe` từ `publish/installers` của máy build.
+- Gói `DicomAgent-0.2.11-win-x64-Setup.exe` từ `publish/installers` của máy build.
 - Tài khoản quản trị để cài service; tài khoản Windows của người vận hành để mở ứng dụng.
 - Setup 0.1.1 tự tạo `%SystemDrive%\DicomSimulator` (thường là `C:\DicomSimulator`) và cài đủ SCU. Không cần build/copy SCU riêng.
 - Bản self-contained không cần .NET Runtime trên máy Windows nhận gói. Máy build cần .NET SDK theo `global.json` (hiện tại 8.0.422).
@@ -65,14 +65,9 @@ Mở ứng dụng → **Refresh** để kết nối Host → **Settings**:
 | Enable receiver | Bật |
 | Enable file history | Bật |
 
-Bấm **Validate → Save settings**. Mở PowerShell Administrator:
+Bấm **Kiểm tra DICOM → Lưu cấu hình**. Từ 0.2.8, app mở xác thực quản trị (polkit trên Linux, UAC trên Windows), cấp quyền cho thư mục ảnh rồi tự khởi động lại service và kết nối lại. Không cần mở Terminal/PowerShell hoặc chạy lệnh sau khi lưu. Kiểm tra trạng thái `Running`.
 
-```powershell
-Restart-Service DicomAgent
-Get-NetTCPConnection -State Listen -LocalPort 11112
-```
-
-Trở về ứng dụng → **Refresh**, kiểm tra Dashboard có trạng thái `Running`, đúng AE và port. Thay đổi Settings chỉ áp dụng sau restart. Chế độ loopback này không cần mở firewall cho máy khác.
+Chọn thư mục riêng, ví dụ `/home/duynguyen/DicomImg/` trên Linux hoặc `D:\DicomImg` trên Windows, hoặc để trống để dùng mặc định. Đợi upload SaaS xong rồi mới lưu; sau khi service tự restart, chọn lại **Thực hiện / Nhận ảnh** cho ca đang thực hiện. Loopback không cần mở firewall cho máy khác.
 
 ## 5. Giả lập thiết bị kiểm tra kết nối
 
@@ -128,7 +123,7 @@ Chỉ thực hiện sau khi loopback thành công:
 1. Cấu hình mạng máy ảo để Ubuntu truy cập được IP Windows, chẳng hạn Bridged hoặc Host-only phù hợp môi trường. Với NAT, cần đường truy cập/port forwarding theo phần mềm máy ảo.
 2. Dùng `ipconfig` trên Windows để lấy IP thực, ví dụ `192.168.1.10`.
 3. Đổi Listen IP thành `0.0.0.0`; Allowed source IPs thành IP Ubuntu mà Windows thực sự nhìn thấy. Nếu giữ kiểm thử local, thêm `127.0.0.1`, phân cách bằng dấu phẩy.
-4. Save và restart service. Cấu hình firewall theo [hướng dẫn Prod](HUONG-DAN-PROD-XQUANG.md), giới hạn nguồn là IP Ubuntu.
+4. Bấm Lưu cấu hình và xác thực quản trị để app tự áp dụng. Cấu hình firewall theo [hướng dẫn Prod](HUONG-DAN-PROD-XQUANG.md), giới hạn nguồn là IP Ubuntu.
 5. Trên Ubuntu có source/SDK, chạy tại root repo, thay IP ví dụ bằng IP Windows:
 
 ```bash
@@ -145,7 +140,7 @@ Lệnh generate không ghi đè file có sẵn; đổi tên file khi chạy lạ
 |---|---|
 | UI Disconnected | Service, tài khoản operator, đăng xuất/đăng nhập sau cài; không đặt `DICOM_AGENT_DATA` khác service |
 | Connection refused/timeout | Service, port listening, IP; khi gửi từ ngoài kiểm tra mạng VM và firewall |
-| Association rejected | Called AE phải là `DICOM_AGENT`, Calling AE `XRAY_SIM`, IP nguồn đúng allowlist; restart sau Save |
+| Association rejected | Called AE phải là `DICOM_AGENT`, Calling AE `XRAY_SIM`, IP nguồn đúng allowlist; Lưu cấu hình và đợi app áp dụng xong |
 | C-STORE thất bại | Dashboard Recent errors; dung lượng, quyền storage, định dạng ảnh và giới hạn kích thước |
 | File có nhưng chưa có lịch sử | Refresh, xem lỗi DB; reconciliation thử lại mỗi 30 giây; không xóa file ảnh |
 | Cấu hình không đổi sau restart | Kiểm tra biến môi trường/CLI của Host có ghi đè settings không |

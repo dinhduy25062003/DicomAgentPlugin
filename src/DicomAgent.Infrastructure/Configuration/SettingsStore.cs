@@ -21,21 +21,45 @@ public sealed class SettingsStore(IOptionsMonitor<DicomOptions> dicom, IOptionsM
     public bool RestartRequired { get; private set; }
     public async Task SaveAsync(AgentSettings settings, CancellationToken ct)
     {
-        CaptureRules.Validate(settings.LocalApi);
-        var errors = ConfigurationRules.Validate(settings.Dicom);
-        if (errors.Length > 0) throw new ArgumentException(string.Join(" ", errors));
-        var path = string.IsNullOrEmpty(settings.Dicom.StoragePath) ? AgentPaths.DefaultStorage : settings.Dicom.StoragePath;
-        Directory.CreateDirectory(path);
-        var probe = Path.Combine(path, ".probe-" + Guid.NewGuid().ToString("N"));
-        await File.WriteAllTextAsync(probe, "", ct); File.Delete(probe);
         await gate.WaitAsync(ct);
         try
         {
-            var temp = FilePath + ".tmp";
-            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }), ct);
-            File.Move(temp, FilePath, true);
+            await WriteAsync(settings, ct);
             RestartRequired = true;
         }
         finally { gate.Release(); }
     }
+    public static async Task WriteAsync(AgentSettings settings, CancellationToken ct)
+    {
+        CaptureRules.Validate(settings.LocalApi);
+        var errors = ConfigurationRules.Validate(settings.Dicom);
+        if (errors.Length > 0) throw new ArgumentException(string.Join(" ", errors));
+        var path = string.IsNullOrEmpty(settings.Dicom.StoragePath) ? AgentPaths.DefaultStorage : settings.Dicom.StoragePath;
+        await ProbeStorageAsync(path, ct);
+        var temp = FilePath + ".tmp";
+        try
+        {
+            await File.WriteAllTextAsync(temp, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }), ct);
+            File.Move(temp, FilePath, true);
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
+    }
+    public static async Task ProbeStorageAsync(string path, CancellationToken ct)
+    {
+        Directory.CreateDirectory(path);
+        var probe = Path.Combine(path, ".probe-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            await File.WriteAllTextAsync(probe, "", ct);
+            File.Delete(probe);
+        }
+        finally
+        {
+            if (File.Exists(probe)) File.Delete(probe);
+        }
+    }
+
 }

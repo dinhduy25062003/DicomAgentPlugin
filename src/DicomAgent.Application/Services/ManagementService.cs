@@ -25,6 +25,8 @@ public sealed class ManagementService(ICaptureRequestService captures, IAgentAdm
                 await captures.ResolveAsync(request.RequestId.Value, true, ct); response = new(true); break;
             case "capture-allow-retry" when request.RequestId is not null:
                 await captures.ResolveAsync(request.RequestId.Value, false, ct); response = new(true); break;
+            case "storage-check":
+                await administration.CheckStorageAsync(ct); response = new(true); break;
             case "settings": response = new(true, Settings: administration.Settings); break;
             case "save" when request.Settings is not null:
                 await administration.SaveAsync(request.Settings, ct); response = new(true); break;

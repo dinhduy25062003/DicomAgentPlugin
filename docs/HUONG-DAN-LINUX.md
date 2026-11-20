@@ -7,13 +7,13 @@ Tài liệu dùng gói Ubuntu/Debian amd64, systemd, libc >= 2.34. Host chạy n
 
 ## 1. Chuẩn bị bộ cài
 
-Lấy `publish/installers/dicom-agent_0.2.2_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
+Lấy `publish/installers/dicom-agent_0.2.11_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
 
 Nếu chưa có gói, chạy tại root repo trên máy build có SDK theo `global.json`:
 
 ```bash
 bash deploy/linux/publish.sh
-bash deploy/linux/build-deb.sh 0.2.2
+bash deploy/linux/build-deb.sh 0.2.11
 ```
 
 Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay có thể ghi đè unit của package.
@@ -23,7 +23,7 @@ Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay
 Trên máy Linux đích, trong thư mục chứa gói:
 
 ```bash
-sudo apt install ./dicom-agent_0.2.2_amd64.deb
+sudo apt install ./dicom-agent_0.2.11_amd64.deb
 ```
 
 Gói tự cấp quyền cho tài khoản đang gọi sudo và tự bật dịch vụ. Không cần đăng xuất hoặc chạy lệnh thêm group. Mở UI từ menu **DICOM Desktop Agent** hoặc:
@@ -82,15 +82,9 @@ Mở ứng dụng → **Refresh → Settings**:
 | Maximum instance size (bytes) | `268435456` |
 | Enable receiver / Enable file history | Bật cả hai |
 
-Bấm **Validate → Save settings**, sau đó:
+Bấm **Kiểm tra DICOM → Lưu cấu hình**. Từ 0.2.8, app mở xác thực quản trị (polkit trên Linux, UAC trên Windows), cấp quyền cho thư mục ảnh rồi tự khởi động lại service và kết nối lại. Không cần mở Terminal/PowerShell hoặc chạy lệnh sau khi lưu. Kiểm tra trạng thái `Running`.
 
-```bash
-sudo systemctl restart dicom-agent.service
-systemctl status dicom-agent.service --no-pager
-ss -ltn 'sport = :11112'
-```
-
-Trở lại Desktop → **Refresh**, xác nhận `Running`, đúng AE/port. Loopback không cần mở firewall cho máy khác. Không cấu hình `DICOM_AGENT_DATA` tùy ý khi mở Desktop để tránh trỏ sai file kết nối HTTP của service đã cài.
+Chọn thư mục riêng, ví dụ `/home/duynguyen/DicomImg/` trên Linux hoặc `D:\DicomImg` trên Windows, hoặc để trống để dùng mặc định. Đợi upload SaaS xong rồi mới lưu; sau khi service tự restart, chọn lại **Thực hiện / Nhận ảnh** cho ca đang thực hiện. Loopback không cần mở firewall cho máy khác.
 
 ## 5. Kiểm tra kết nối DICOM
 
@@ -146,7 +140,7 @@ Agent chưa có viewer hoặc chuyển JPEG/PNG. Mở `.dcm` bằng viewer DICOM
 
 1. Lấy IP LAN máy Agent bằng `ip -br address`, ví dụ `192.168.1.10`.
 2. Settings: Listen IP `0.0.0.0`; Allowed source IPs là IP thật của máy gửi, ví dụ `192.168.1.20`; Calling AE `XRAY_SIM`.
-3. Save, restart service. Nếu tiếp tục thử local, thêm `127.0.0.1` vào allowlist, cách nhau bằng dấu phẩy.
+3. Bấm Lưu cấu hình và xác thực quản trị để app tự áp dụng. Nếu tiếp tục thử local, thêm `127.0.0.1` vào allowlist, cách nhau bằng dấu phẩy.
 4. Nếu UFW đang được sử dụng, mở đúng nguồn:
 
 ```bash
@@ -178,7 +172,7 @@ ss -ltn 'sport = :11112'
 | UI không mở | Phiên đồ họa, native dependencies; không mở UI bằng root để thay thế việc cấp group |
 | UI Disconnected | Service, port HTTP, `DICOM_AGENT_DATA` và quyền đọc desktop-connection.json |
 | Timeout/refused | Port, listen IP, firewall, mạng máy ảo |
-| Association rejected | Called/Calling AE, IP nguồn allowlist, restart sau Save |
+| Association rejected | Called/Calling AE, IP nguồn allowlist, Lưu cấu hình và đợi app áp dụng xong |
 | Save custom storage thất bại | Quyền service và sandbox systemd; xem hướng dẫn Prod |
 | File có nhưng history thiếu | Lỗi DB/quyền/dung lượng; chờ reconciliation 30 giây và Refresh, không xóa ảnh |
 

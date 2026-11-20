@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia.Styling;
 using DicomAgent.Application.Services;
 using DicomAgent.Desktop.Services;
 using DicomAgent.Infrastructure.Management;
@@ -58,6 +59,32 @@ public sealed class InstallationAccessTests
         }
         finally { if (Directory.Exists(path)) Directory.Delete(path, true); }
     }
+    [Fact]
+    public void DesktopThemePersistsPerUserAndRecoversFromInvalidPreferences()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "dicom-theme-test-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var settings = new DesktopThemeSettings(directory);
+            Assert.Equal(ThemeVariant.Light, settings.Load());
+            settings.Save(ThemeVariant.Dark);
+            Assert.Equal(ThemeVariant.Dark, new DesktopThemeSettings(directory).Load());
+            settings.Save(ThemeVariant.Light);
+            Assert.Equal(ThemeVariant.Light, new DesktopThemeSettings(directory).Load());
+            Assert.Throws<ArgumentException>(() => settings.Save(ThemeVariant.Default));
+            var path = Path.Combine(directory, "DicomAgent", "appearance.json");
+            File.WriteAllText(path, "invalid JSON");
+            Assert.Equal(ThemeVariant.Light, settings.Load());
+            settings.Save(ThemeVariant.Dark);
+            Assert.Equal(ThemeVariant.Dark, settings.Load());
+            Assert.Single(Directory.GetFiles(Path.GetDirectoryName(path)!));
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
     private static async Task<string> RunAsync(string command, params string[] arguments)
     {
         var start = new ProcessStartInfo(command) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };

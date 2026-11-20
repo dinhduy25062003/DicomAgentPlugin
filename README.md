@@ -4,7 +4,7 @@ Từ 0.2.2: cài xong mở UI dùng ngay, không cần đăng xuất để nhậ
 
 Gói cài đặt **Windows Setup.exe** và **Ubuntu/Debian .deb**: xem [PACKAGES.md](docs/PACKAGES.md).
 
-Bản **0.2.2** nhận request từ web trên cùng máy qua `http://127.0.0.1:17890`, cố định tenant từ request đầu tiên, lưu ca trong JSON, nhận/chọn DICOM và gửi multipart lên SaaS khi bấm Done. Ba màn hình: quản lý request, thực hiện dịch vụ (có preview frame đầu tiên), cấu hình kết nối. [Hướng dẫn và hợp đồng web → local → SaaS](docs/LOCALHOST-WEB-SAAS.md). Bộ nhận DICOM/lưu ảnh vẫn hoạt động khi không có Internet; không tự chuyển JPEG/PNG.
+Bản **0.2.11** thêm **Lưu và áp dụng tự động**: chọn thư mục ảnh, bấm Lưu cấu hình, xác thực quản trị nếu được yêu cầu; app tự cấp quyền thư mục và khởi động lại service, không cần chạy lệnh. App hỗ trợ giao diện sáng và tối tông xanh dương: chọn tại **Cấu hình kết nối → Giao diện Desktop → Chủ đề màu**, áp dụng ngay và ghi nhớ riêng cho tài khoản hiện tại; bản 0.2.4 tổ chức lại code cho dễ đọc, dễ debug; chặn tạo trùng request `new` theo `resModel + resId + PartnerId` trong storage, vẫn cho tạo mới khi ca cũ đã `done`; nhận request từ web trên cùng máy qua `http://127.0.0.1:17890`, cố định tenant từ request đầu tiên, lưu ca trong JSON, nhận/chọn DICOM và gửi multipart lên SaaS khi bấm Done. Ba màn hình: quản lý request, thực hiện dịch vụ (có preview frame đầu tiên), cấu hình kết nối. [Hướng dẫn và hợp đồng web → local → SaaS](docs/LOCALHOST-WEB-SAAS.md). Bộ nhận DICOM/lưu ảnh vẫn hoạt động khi không có Internet; không tự chuyển JPEG/PNG.
 
 ## Kiến trúc
 
@@ -114,7 +114,7 @@ AE Title: 1–16 ký tự ASCII printable, không backslash, không khoảng tr�
 
 `StoragePath` rỗng dùng mặc định OS; đường dẫn tùy chỉnh phải tuyệt đối, không parent traversal hoặc symlink. Service cần quyền ghi; Desktop/operator cần quyền đọc để chọn upload. `MaxConcurrentAssociations`: 1–100; `MaxInstanceBytes`: 1 KiB–2 GiB, áp dụng ngay khi nhận stream C-STORE, mặc định 256 MiB. PDU 16 KiB, timeout DIMSE request 30 giây. Timeout này không phải giới hạn tổng thời gian truyền ảnh hay idle timeout tuyệt đối cho mọi loại association.
 
-**Mọi thay đổi cấu hình cần restart service.** `IOptionsMonitor<DicomOptions>` đọc cấu hình lưu bền; Receiver giữ snapshot cấu hình lúc khởi động. Dashboard hiển thị cấu hình đang chạy và cờ cần restart. UI không tự thực thi lệnh đặc quyền để restart OS service.
+**Lưu trên Desktop tự áp dụng cấu hình từ 0.2.8.** UI gọi helper Host đã cài qua polkit/UAC để cấp quyền thư mục, lưu và restart service, rồi tự kết nối lại. Receiver vẫn giữ snapshot lúc khởi động; không hot-mutate cấu hình giữa các association. API management `save` cũ vẫn chỉ lưu và báo cần restart.
 
 ## DICOM conformance của MVP
 
@@ -152,7 +152,7 @@ Một Host sở hữu một data directory và storage root; không chạy hai i
 1. Cài/chạy Host trước. Mở Desktop bằng operator đã được cấp quyền.
 2. **Quản lý request**: request từ web tự cập nhật, tìm khách/đối tượng/dịch vụ, lọc trạng thái, bấm tên xem chi tiết, Thực hiện hoặc xóa có xác nhận.
 3. **Thực hiện dịch vụ**: bật nhận DICOM cho một ca, hoặc chọn file/thư mục; xem danh sách ảnh và preview frame đầu tiên, đối chiếu PatientName/PatientID/Study, bỏ ảnh không dùng và bấm Done để upload SaaS.
-4. **Cấu hình kết nối**: trạng thái receiver, AE/IP/port/storage/allowlists, dung lượng/kết nối tối đa và API localhost/SaaS. Lưu xong restart service rồi Làm mới; Làm mới sẽ nạp lại các trường cấu hình từ Host.
+4. **Cấu hình kết nối**: trạng thái receiver, AE/IP/port/storage/allowlists, dung lượng/kết nối tối đa và API localhost/SaaS. Bấm Lưu cấu hình, xác thực quản trị nếu được yêu cầu; app tự restart service và kết nối lại; Làm mới sẽ nạp lại các trường cấu hình từ Host.
 5. Tenant từ request đầu tiên được giữ cố định qua restart; app không cần login riêng. [Contract, mẫu fetch và các trạng thái lỗi upload](docs/LOCALHOST-WEB-SAAS.md).
 6. Trên Windows, bấm X đưa UI xuống system tray; menu Exit desktop thoát giao diện. Đóng UI không dừng Host hoặc API localhost.
 
@@ -161,7 +161,7 @@ Web và Desktop đều gọi HTTP tại `127.0.0.1:17890`; không có Unix socke
 
 ## Cài Windows
 
-Setup Windows 0.2.2 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
+Setup Windows 0.2.11 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
 
 
 PowerShell tại root repository:
@@ -288,7 +288,7 @@ Host single-file có native SQLite được extract; service Linux cấu hình e
 | C-STORE thất bại | Quyền ghi, dung lượng đĩa, UID bắt buộc, size limit, cùng UID khác dữ liệu. Không xóa ảnh cũ để thử lại. |
 | File có, history thiếu | Xem log, phục hồi quyền/schema DB hoặc dung lượng; chờ reconciliation 30 giây/restart. File hoàn chỉnh được giữ. |
 | UI disconnected | Host đang chạy, cùng `DICOM_AGENT_DATA`, quyền đọc desktop-connection.json và port HTTP local; không chạy UI dưới identity không được cấp quyền. |
-| Settings chưa áp dụng | Restart service, kiểm tra biến môi trường/CLI có ghi đè, Refresh xem active configuration. |
+| Settings chưa áp dụng | Bấm Lưu cấu hình, chấp nhận xác thực quản trị và đợi kết nối lại; kiểm tra biến môi trường/CLI có ghi đè. |
 | Custom storage bị chặn trên Linux | systemd `ProtectHome`/`ReadWritePaths`, owner/group và mount permissions; không giảm toàn bộ sandbox nếu chỉ cần thêm một thư mục. |
 | UI Linux không mở | Phiên đồ họa và native libraries/font phù hợp distro; service Host không cần X11/Wayland. |
 
@@ -309,3 +309,5 @@ Bản 0.2.0 có request JSON, upload thủ công qua Done, phục hồi trạng 
 API được đối chiếu thêm với XML documentation/assembly từ package đã restore và build/test thực tế:
 [fo-dicom repository](https://github.com/fo-dicom/fo-dicom),
 [fo-dicom v5 API](https://fo-dicom.github.io/dev/v5/api/FellowOakDicom.Network.IDicomServerFactory.html).
+
+Build cả hai bộ cài bằng một lệnh trên Linux: `bash deploy/release.sh` (tự tăng patch, build/test, publish, kiểm tra payload và ghi checksum). Kết quả trong `publish/installers/`. Chi tiết: [PACKAGES.md](docs/PACKAGES.md).

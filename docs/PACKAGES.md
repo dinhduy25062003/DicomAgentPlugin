@@ -1,21 +1,21 @@
 # Gói cài đặt Windows và Ubuntu/Debian
 
-Phiên bản hiện tại: **0.2.2**, CPU **x64/amd64**. Host và Desktop đều self-contained .NET 8.
+Phiên bản hiện tại: **0.2.11**, CPU **x64/amd64**. Host và Desktop đều self-contained .NET 8.
 
-Bản 0.2.2 bổ sung quyền dùng UI ngay sau cài và tùy chọn UI autostart trên cả hai OS; giữ Controller → Application → Infrastructure, API localhost, request JSON theo tenant đầu tiên, chọn/nhận DICOM và Done upload SaaS. [Hướng dẫn luồng mới](LOCALHOST-WEB-SAAS.md). Cài đè giữ ảnh, history, settings và request/tenant binding.
+Bản 0.2.8 thêm Lưu và áp dụng tự động: app xác thực quản trị bằng polkit/UAC, cấp quyền thư mục ảnh đã chọn và tự restart service. Linux hỗ trợ cả thư mục con trong home, chỉ bind đúng thư mục được chọn; lỗi áp dụng khôi phục cấu hình trước đó. Đợi upload SaaS xong mới lưu. Không cần lệnh cấp quyền/restart sau khi bấm Lưu. Bản 0.2.7 thêm theme sáng/tối tông xanh dương cho cả ba màn hình và hộp xác nhận. Chọn tại **Cấu hình kết nối → Giao diện Desktop → Chủ đề màu**; áp dụng ngay, ghi nhớ theo tài khoản, không cần restart dịch vụ. Chữ nút chính luôn trắng khi hover/nhấn trên nền xanh đậm. Bản 0.2.5 làm mới giao diện Desktop: light theme xanh dương, sidebar trái thay tab ngang, header riêng với badge trạng thái, empty state thân thiện; logic và API giữ nguyên. Bản 0.2.5 tổ chức lại code cho dễ đọc, dễ debug. Bản 0.2.3 chặn tạo trùng bộ resModel + resId + PartnerId khi ca cũ còn new, vẫn cho tạo khi ca cũ đã done. Bản 0.2.2 bổ sung quyền dùng UI ngay sau cài và tùy chọn UI autostart trên cả hai OS; giữ Controller → Application → Infrastructure, API localhost, request JSON theo tenant đầu tiên, chọn/nhận DICOM và Done upload SaaS. [Hướng dẫn luồng mới](LOCALHOST-WEB-SAAS.md). Cài đè giữ ảnh, history, settings và request/tenant binding.
 
 ## Windows Setup.exe
 
 Bản Windows **0.1.1** bổ sung SCU tự cài vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`), Desktop không mở console và bấm X ẩn xuống system tray. Menu tray có Open và Exit desktop; Exit không dừng service. Vị trí trong nhóm hidden icons do Windows quyết định. Tạo ảnh thử vào TEMP, không ghi vào thư mục binaries của simulator.
 
-Artifact mới: `publish/installers/DicomAgent-0.2.2-win-x64-Setup.exe`.
+Artifact mới: `publish/installers/DicomAgent-0.2.11-win-x64-Setup.exe`.
 
 1. Copy duy nhất file Setup.exe sang máy Windows x64, thoát Desktop Agent đang mở qua menu tray → **Exit desktop** nếu có (bấm X chỉ ẩn).
 2. Chạy Setup.exe, chấp nhận elevation để cài service và ACL.
 3. Nhập Windows account của người vận hành, dạng `COMPUTER\user` hoặc `DOMAIN\user`. Không nhập mật khẩu. Tài khoản này được thêm vào `DicomAgentOperators`.
 4. Setup cài Host/Desktop vào `%ProgramFiles%\DicomAgent`, cài và tự khởi động Windows Service `DicomAgent` bằng identity `NT SERVICE\DicomAgent`.
 5. Mở **DICOM Desktop Agent** từ Start Menu ngay sau khi cài; quyền theo SID được cấp trực tiếp nên không cần đăng xuất.
-6. Cấu hình AE/IP/port/storage/allowlists trong UI. Restart service để áp dụng. Firewall chưa tự mở; quản trị mở rule LAN chỉ từ IP máy X-quang được phép.
+6. Cấu hình AE/IP/port/storage/allowlists trong UI rồi bấm Lưu cấu hình. Chấp nhận UAC nếu được yêu cầu; app tự áp dụng và restart service. Firewall chưa tự mở; quản trị mở rule LAN chỉ từ IP máy X-quang được phép.
 
 Không cần cài .NET Runtime trên máy khách. Không tách riêng một Desktop.exe khỏi DLL/native files trong thư mục publish; Setup.exe đã chứa tất cả các file này.
 
@@ -25,12 +25,12 @@ Gói chưa ký Authenticode. Chưa kiểm thử chạy/cài/gỡ thực tế tr�
 
 ## Ubuntu/Debian `.deb`
 
-Artifact: `publish/installers/dicom-agent_0.2.2_amd64.deb`.
+Artifact: `publish/installers/dicom-agent_0.2.11_amd64.deb`.
 
 Tại thư mục chứa file tải về:
 
 ```bash
-sudo apt install ./dicom-agent_0.2.2_amd64.deb
+sudo apt install ./dicom-agent_0.2.11_amd64.deb
 ```
 
 Gói tự nhận tài khoản gọi sudo, cấp ACL cho phiên hiện tại và bật service ngay. Không cần usermod hoặc đăng xuất. Sau đó mở **DICOM Desktop Agent** trong menu ứng dụng hoặc chạy:
@@ -38,8 +38,6 @@ Gói tự nhận tài khoản gọi sudo, cấp ACL cho phiên hiện tại và 
 ```bash
 dicom-agent-desktop
 systemctl status dicom-agent.service
-# Sau khi lưu settings:
-sudo systemctl restart dicom-agent.service
 ```
 
 Gói tự cài binaries vào `/opt/dicom-agent`, systemd unit, Desktop launcher/icon và tài khoản hạn chế `dicom-agent`; tạo `/var/lib/dicom-agent` với group operator và quyền hạn chế. Tài khoản gọi `sudo apt install` được nhận qua SUDO_USER/SUDO_UID để cấp quyền ngay; PKEXEC_UID cũng được hỗ trợ. Với cài đặt root không có người dùng gốc, quản trị có thể chỉ định DICOM_AGENT_OPERATOR_USER. Không tự mở firewall. Data mặc định `/var/lib/dicom-agent/storage`, DB/config nằm trong `/var/lib/dicom-agent`.
@@ -56,25 +54,45 @@ sudo apt purge dicom-agent
 
 Package không chứa file DICOM, DB hay settings khách hàng. remove/purge không tự xóa `/var/lib/dicom-agent` hoặc custom storage. Không cài song song bằng script install.sh và gói deb (unit cài thủ công trong `/etc/systemd/system` có thể ghi đè unit do package quản lý).
 
+## Một lệnh tạo cả hai bộ cài trên Linux
+
+Chạy từ thư mục source:
+
+```bash
+bash deploy/release.sh
+```
+
+Lệnh tự tăng patch (ví dụ 0.2.8 → 0.2.9), đồng bộ version trong project/script/tài liệu, restore → build → test, publish mới cả Windows/Linux, tạo `.deb` và `Setup.exe`, trích xuất đối chiếu payload rồi cập nhật `publish/installers/SHA256SUMS`. Không tự cài lên máy, restart service, commit hoặc push. Giữ các bộ cài cũ. Nếu bước nào lỗi, script dừng; sửa lỗi rồi chạy lại (lần sau tăng patch tiếp).
+
+Có thể chỉ định version mới:
+
+```bash
+bash deploy/release.sh 0.3.0
+```
+
+Version phải lớn hơn version hiện tại, không dùng lại bản đã phát hành để tránh apt giữ bản cũ. Kết quả nằm trong `publish/installers/`.
+
+Máy build cần .NET SDK theo global.json, PowerShell (`pwsh`), NSIS (`makensis`), Python 3 (>=3.11), dpkg-deb, 7z và flock. Script tìm NSIS trong PATH, hoặc biến MAKENSIS/NSISDIR, hoặc cache `${XDG_CACHE_HOME:-~/.cache}/dicom-agent-build/nsis/` (bố cục package Debian `usr/bin/makensis` + `usr/share/nsis`). Không dùng NSIS tạm trong /tmp. Windows đích không cần những công cụ build này.
+
 ## Build lại
 
 Trên Linux:
 
 ```bash
 bash deploy/linux/publish.sh
-bash deploy/linux/build-deb.sh 0.2.2
+bash deploy/linux/build-deb.sh 0.2.11
 # Để build Windows installer, cần PowerShell và NSIS trên máy build:
 pwsh -NoProfile -File deploy/windows/publish.ps1
 # Cài makensis qua package nsis trên máy build nếu chưa có, hoặc đặt MAKENSIS/NSISDIR cho tool unpack cục bộ:
-bash deploy/windows/build-installer.sh 0.2.2
+bash deploy/windows/build-installer.sh 0.2.11
 ```
 
 Trên Windows, cài NSIS cho máy build rồi:
 
 ```powershell
-./deploy/windows/build-installer.ps1 -Version 0.2.2
+./deploy/windows/build-installer.ps1 -Version 0.2.11
 # Nếu binaries đã publish:
-./deploy/windows/build-installer.ps1 -Version 0.2.2 -SkipPublish
+./deploy/windows/build-installer.ps1 -Version 0.2.11 -SkipPublish
 ```
 
 NSIS chỉ cần trên máy build, không cần trên máy khách. Công cụ Debian `dpkg-deb` cũng chỉ cần cho build hoặc cài gói deb. SHA-256 của hai artifact nằm trong `publish/installers/SHA256SUMS`.
@@ -91,3 +109,7 @@ Luồng và kiểm chứng ứng dụng 0.2.2: [LOCALHOST-WEB-SAAS.md](LOCALHOST
 
 
 Từ 0.2.2, **Cấu hình kết nối → Mở giao diện khi đăng nhập máy → Lưu tùy chọn khởi động** bật/tắt autostart UI cho tài khoản hiện tại trên cả Windows và Linux. Dịch vụ Host vẫn tự chạy khi cài và khi boot, độc lập với UI. Linux cấp ACL readonly theo UID trên data/file kết nối HTTP; Windows cấp SID trực tiếp trên data để phiên hiện tại không cần làm mới group token.
+
+Theme mặc định là Sáng. Lựa chọn giao diện lưu riêng tại `%LOCALAPPDATA%\DicomAgent\appearance.json` trên Windows hoặc `${XDG_CONFIG_HOME:-~/.config}/DicomAgent/appearance.json` trên Linux; không nằm trong settings của Host. Cài đè không xóa lựa chọn này.
+
+Từ 0.2.8, nút **Lưu cấu hình** dùng helper trong Host đã cài để cấp quyền thư mục và áp dụng cấu hình. Linux có dependency `pkexec` và policy polkit; cần phiên Desktop có authentication agent. Windows dùng UAC. Hộp xác thực là của hệ điều hành; không mở terminal, không nhập lệnh. Đợi gửi SaaS xong trước khi lưu. Sau khi service tự khởi động lại, bật nhận lại cho ca đang thực hiện.

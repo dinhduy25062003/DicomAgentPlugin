@@ -21,6 +21,8 @@ public sealed partial class MainViewModel
     private string previewMessage = "Chọn ảnh để xem trước frame đầu tiên.";
     public ObservableCollection<CaptureRequest> Requests { get; } = [];
     public ObservableCollection<CaptureFile> CaptureFiles { get; } = [];
+    public bool HasRequests => Requests.Count > 0;
+    public bool HasFiles => CaptureFiles.Count > 0;
     public ICommand StartCaptureCommand { get; private set; } = null!;
     public ICommand StopCaptureCommand { get; private set; } = null!;
     public ICommand DoneCommand { get; private set; } = null!;
@@ -42,6 +44,7 @@ public sealed partial class MainViewModel
     public WriteableBitmap? Preview { get => preview; private set => Set(ref preview, value); }
     public string PreviewMessage { get => previewMessage; private set => Set(ref previewMessage, value); }
     public bool Verified { get => verified; set => Set(ref verified, value); }
+    public bool HasCurrentRequest => CurrentRequest is not null;
     public bool IsEditable => CurrentRequest?.Status == "new" && !busy;
     public bool IsReview => CurrentRequest?.Status == "review";
     public string ActiveCapture => activeRequestId is null ? "Chưa có ca đang nhận ảnh" : "Đang nhận DICOM cho: " + allRequests.FirstOrDefault(x => x.Id == activeRequestId)?.Info.PartnerName;
@@ -50,6 +53,9 @@ public sealed partial class MainViewModel
         "Ca này chưa bật nhận ảnh. Bấm Thực hiện để nhận DICOM, hoặc chọn file/thư mục.";
     private void InitializeCaptures()
     {
+        // Keep the empty-state flags correct no matter which code path mutates the lists.
+        Requests.CollectionChanged += (_, _) => PropertyChanged?.Invoke(this, new(nameof(HasRequests)));
+        CaptureFiles.CollectionChanged += (_, _) => PropertyChanged?.Invoke(this, new(nameof(HasFiles)));
         StartCaptureCommand = new AsyncCommand(() => RunCaptureAsync(async () =>
         {
             var request = SelectedTab == 1 ? CurrentRequest : SelectedRequest;
@@ -75,32 +81,46 @@ public sealed partial class MainViewModel
     }
     private void NotifyCapture()
     {
-        foreach (var name in new[] { nameof(IsEditable), nameof(IsReview), nameof(ActiveCapture), nameof(CaptureNotice) })
+        foreach (var name in new[] { nameof(IsEditable), nameof(IsReview), nameof(ActiveCapture), nameof(CaptureNotice), nameof(HasCurrentRequest) })
             PropertyChanged?.Invoke(this, new(name));
     }
     public void ViewRequest(CaptureRequest request)
     {
         CurrentRequest = request; SelectedTab = 1; Verified = false; UpdateFiles();
     }
+    private static readonly string[] FilterStatuses = ["", "new", "done", "uploading", "review"];
+
     private void FilterRequests()
     {
         var selectedId = SelectedRequest?.Id;
-        var statusFilter = new[] { "", "new", "done", "uploading", "review" }[Math.Clamp(FilterIndex, 0, 4)];
+        var statusFilter = FilterStatuses[Math.Clamp(FilterIndex, 0, FilterStatuses.Length - 1)];
         Requests.Clear();
-        foreach (var item in allRequests.Where(x => (statusFilter.Length == 0 || x.Status == statusFilter) &&
-            (Search.Length == 0 || string.Join(" ", x.TenantName, x.Info.EntityName, x.Info.ModelName, x.Info.PartnerId, x.Info.PartnerName,
-                x.Info.ServiceName, x.Info.ResModel, x.Info.ResId).Contains(Search, StringComparison.OrdinalIgnoreCase)))) Requests.Add(item);
+        foreach (var item in allRequests.Where(MatchesFilter)) Requests.Add(item);
         SelectedRequest = Requests.FirstOrDefault(x => x.Id == selectedId);
+    }
+
+    private bool MatchesFilter(CaptureRequest x)
+    {
+        var statusFilter = FilterStatuses[Math.Clamp(FilterIndex, 0, FilterStatuses.Length - 1)];
+        if (statusFilter.Length > 0 && x.Status != statusFilter) return false;
+        if (Search.Length == 0) return true;
+        var haystack = string.Join(" ", x.TenantName, x.Info.EntityName, x.Info.ModelName, x.Info.PartnerId,
+            x.Info.PartnerName, x.Info.ServiceName, x.Info.ResModel, x.Info.ResId);
+        return haystack.Contains(Search, StringComparison.OrdinalIgnoreCase);
     }
     public async Task RefreshCapturesAsync()
     {
-        if (polling) return; polling = true;
+        if (polling) return;
+        polling = true;
         try
         {
-            var response = await client.SendAsync(new("captures")); EnsureSuccess(response);
+            var response = await client.SendAsync(new("captures"));
+            EnsureSuccess(response);
             var snapshot = response.Captures!;
+            // Record equality compares the Files array by reference, so compare serialized value instead.
             var changed = !System.Text.Json.JsonSerializer.Serialize(allRequests).Equals(System.Text.Json.JsonSerializer.Serialize(snapshot.Requests), StringComparison.Ordinal);
-            allRequests = snapshot.Requests; activeRequestId = snapshot.ActiveRequestId;
+            allRequests = snapshot.Requests;
+            activeRequestId = snapshot.ActiveRequestId;
             TenantName = snapshot.TenantName ?? "Chưa gắn tenant — tự cấu hình khi nhận request đầu tiên";
             if (changed) FilterRequests();
             if (CurrentRequest is not null)
@@ -115,6 +135,7 @@ public sealed partial class MainViewModel
     }
     public async Task PollAsync()
     {
+        if (IsApplyingSettings) return;
         try
         {
             await RefreshCapturesAsync();
@@ -126,7 +147,9 @@ public sealed partial class MainViewModel
     {
         var files = CurrentRequest?.Files ?? [];
         if (CaptureFiles.Select(x => x.Id).SequenceEqual(files.Select(x => x.Id))) return;
-        var selectedId = SelectedFile?.Id; CaptureFiles.Clear(); foreach (var file in files) CaptureFiles.Add(file);
+        var selectedId = SelectedFile?.Id;
+        CaptureFiles.Clear();
+        foreach (var file in files) CaptureFiles.Add(file);
         SelectedFile = CaptureFiles.FirstOrDefault(x => x.Id == selectedId) ?? CaptureFiles.FirstOrDefault();
     }
     public async Task ImportFilesAsync(IEnumerable<string> paths)

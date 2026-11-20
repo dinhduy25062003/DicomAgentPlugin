@@ -10,6 +10,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+if (args is ["--apply-settings", var settingsFile])
+{
+    Environment.ExitCode = await DicomAgent.Host.Configuration.InstalledSettingsCommand.RunAsync(settingsFile);
+    return;
+}
+
 if (OperatingSystem.IsWindows()) Directory.CreateDirectory(AgentPaths.DataDirectory);
 else Directory.CreateDirectory(AgentPaths.DataDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.GroupExecute);
 var receiveTemp = Path.Combine(AgentPaths.DataDirectory, "receive-temp");

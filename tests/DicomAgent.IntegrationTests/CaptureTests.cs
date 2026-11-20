@@ -52,6 +52,9 @@ public sealed class CaptureTests
             using var retry = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", id, Input));
             Assert.Equal(HttpStatusCode.Created, retry.StatusCode);
             Assert.Single((await captures.SnapshotAsync(default)).Requests);
+            using var duplicate = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", input: Input with { EntityName = "Different display name", ServiceName = "Another service" }));
+            Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+            Assert.Contains("resModel, resId and PartnerId", await duplicate.Content.ReadAsStringAsync());
             using var conflicting = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", id, Input with { PartnerName = "Other" }));
             Assert.Equal(HttpStatusCode.Conflict, conflicting.StatusCode);
             using var otherTenant = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", Guid.NewGuid(), Input, "other"));
@@ -71,6 +74,56 @@ public sealed class CaptureTests
             var afterDelete = fixture.NewCaptureService();
             Assert.Equal("demo", (await afterDelete.SnapshotAsync(default)).TenantName);
             await Assert.ThrowsAsync<CaptureConflictException>(() => afterDelete.ReceiveAsync(Guid.NewGuid(), "other", Token, Input, default));
+        }
+        finally { await api.StopAsync(default); }
+    }
+
+    [Fact]
+    public async Task ConcurrentRequestsWithSameBusinessKeyCreateOnlyOneStoredRequest()
+    {
+        await using var fixture = new TestFixture(); using var api = fixture.Api(); await api.StartAsync(default);
+        using var client = await ClientAsync(fixture.Provider.GetRequiredService<LocalApiOptions>().Port);
+        try
+        {
+            using var first = Request(HttpMethod.Post, "/api/capture-requests", Guid.NewGuid(), Input);
+            using var second = Request(HttpMethod.Post, "/api/capture-requests", Guid.NewGuid(), Input with { PartnerName = "Changed display name" });
+            var responses = await Task.WhenAll(client.SendAsync(first), client.SendAsync(second));
+            try
+            {
+                Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Created);
+                Assert.Single(responses, response => response.StatusCode == HttpStatusCode.Conflict);
+            }
+            finally { foreach (var response in responses) response.Dispose(); }
+            var captures = fixture.Provider.GetRequiredService<ICaptureRequestService>();
+            Assert.Single((await captures.SnapshotAsync(default)).Requests);
+            Assert.Single(Directory.GetFiles(Path.Combine(fixture.Data, "requests"), "*.json"));
+            var restarted = fixture.NewCaptureService();
+            await Assert.ThrowsAsync<CaptureConflictException>(() => restarted.ReceiveAsync(Guid.NewGuid(), "demo", Token, Input, default));
+        }
+        finally { await api.StopAsync(default); }
+    }
+
+    [Fact]
+    public async Task CompletedRequestAllowsANewHttpRequestWithTheSameBusinessKeyAfterReload()
+    {
+        await using var fixture = new TestFixture();
+        var firstId = Guid.NewGuid(); var repository = fixture.Provider.GetRequiredService<ICaptureRequestRepository>();
+        var secrets = fixture.Provider.GetRequiredService<IRequestSecretStore>();
+        await repository.LoadAsync(default); await repository.BindTenantAsync("demo", default);
+        await repository.SaveAsync(new(new(firstId, "demo", Input, DateTime.UtcNow, "done", [], CompletedAtUtc: DateTime.UtcNow), secrets.Protect(Token), "https://demo.tdental.vn/"), default);
+        using var api = fixture.Api(); await api.StartAsync(default);
+        using var client = await ClientAsync(fixture.Provider.GetRequiredService<LocalApiOptions>().Port);
+        try
+        {
+            var nextId = Guid.NewGuid();
+            using var created = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", nextId, Input));
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            using var blocked = await client.SendAsync(Request(HttpMethod.Post, "/api/capture-requests", Guid.NewGuid(), Input));
+            Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+            var records = (await fixture.Provider.GetRequiredService<ICaptureRequestService>().SnapshotAsync(default)).Requests;
+            Assert.Equal("done", records.Single(value => value.Id == firstId).Status);
+            Assert.Equal("new", records.Single(value => value.Id == nextId).Status);
+            Assert.Equal(2, Directory.GetFiles(Path.Combine(fixture.Data, "requests"), "*.json").Length);
         }
         finally { await api.StopAsync(default); }
     }
@@ -115,11 +168,14 @@ public sealed class CaptureTests
         var builder = WebApplication.CreateSlimBuilder(); builder.Logging.ClearProviders(); builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         await using var saas = builder.Build();
         var uploaded = new TaskCompletionSource<IFormCollection>(TaskCreationOptions.RunContinuationsAsynchronously);
-        string? authorization = null, tenant = null, key = null; var count = 0;
+        string? authorization = null;
+        var count = 0;
         saas.MapPost("/api/IrAttachments", async context =>
         {
             Interlocked.Increment(ref count);
-            authorization = context.Request.Headers.Authorization; tenant = context.Request.Headers["TenantName"]; key = context.Request.Headers["Idempotency-Key"];
+            authorization = context.Request.Headers.Authorization;
+            Assert.False(context.Request.Headers.ContainsKey("TenantName"));
+            Assert.False(context.Request.Headers.ContainsKey("Idempotency-Key"));
             var form = await context.Request.ReadFormAsync();
             Assert.All(form.Files, x => Assert.Equal("application/dicom", x.ContentType));
             Assert.All(form.Files, x => Assert.True(x.Length > 0));
@@ -157,7 +213,7 @@ public sealed class CaptureTests
             Assert.True((await client.SendAsync(new("capture-done", RequestId: id, FileIds: request.Files.Select(x => x.Id).ToArray()))).Success);
             var form = await uploaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
             await WaitStatusAsync(captures, "done");
-            Assert.Equal(Token, authorization); Assert.Equal("demo", tenant); Assert.Equal(id.ToString(), key);
+            Assert.Equal(Token, authorization);
             Assert.Equal(Input.ResId.ToString(), form["ResId"]); Assert.Equal(Input.ResModel, form["ResModel"]); Assert.Equal("demo", form["Attachments.Tenant"]);
             Assert.Equal(2, form.Files.Count); Assert.All(form.Files, x => Assert.Equal("Attachments.Files", x.Name));
             Assert.False((await client.SendAsync(new("capture-done", RequestId: id, FileIds: request.Files.Select(x => x.Id).ToArray()))).Success);
@@ -177,11 +233,14 @@ public sealed class CaptureTests
         var port = TestFixture.FreePort();
         var builder = WebApplication.CreateSlimBuilder(); builder.Logging.ClearProviders(); builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
         await using var saas = builder.Build();
-        var received = System.Threading.Channels.Channel.CreateUnbounded<(Guid Id, string Authorization)>();
+        var received = System.Threading.Channels.Channel.CreateUnbounded<(Guid ResId, string Authorization)>();
         saas.MapPost("/api/IrAttachments", async context =>
         {
-            await context.Request.ReadFormAsync();
-            await received.Writer.WriteAsync((Guid.Parse(context.Request.Headers["Idempotency-Key"].ToString()), context.Request.Headers.Authorization.ToString()));
+            Assert.False(context.Request.Headers.ContainsKey("TenantName"));
+            Assert.False(context.Request.Headers.ContainsKey("Idempotency-Key"));
+            var form = await context.Request.ReadFormAsync();
+            Assert.Equal("demo", form["Attachments.Tenant"]);
+            await received.Writer.WriteAsync((Guid.Parse(form["ResId"].ToString()), context.Request.Headers.Authorization.ToString()));
             context.Response.StatusCode = 200;
         });
         await saas.StartAsync();
@@ -193,7 +252,8 @@ public sealed class CaptureTests
         const string secondToken = "Bearer synthetic-request-B-token";
         await original.ReceiveAsync(first, "demo", firstToken, Input, default);
         // Receiving a later request must not replace the earlier request's upload credentials.
-        await original.ReceiveAsync(second, "demo", secondToken, Input with { PartnerId = "456", PartnerName = "Another synthetic patient" }, default);
+        var secondInput = Input with { ResId = Guid.NewGuid(), PartnerId = "456", PartnerName = "Another synthetic patient" };
+        await original.ReceiveAsync(second, "demo", secondToken, secondInput, default);
         foreach (var id in new[] { first, second })
         {
             var file = TestFixture.File(); var stored = await fixture.Store.SaveAsync(file, default, associateCapture: false);
@@ -203,11 +263,11 @@ public sealed class CaptureTests
         using var restartWorker = new CaptureUploadWorker(restarted); await restartWorker.StartAsync(default);
         try
         {
-            foreach (var expected in new[] { (Id: first, Token: firstToken), (Id: second, Token: secondToken) })
+            foreach (var expected in new[] { (Id: first, ResId: Input.ResId, Token: firstToken), (Id: second, ResId: secondInput.ResId, Token: secondToken) })
             {
                 await restarted.QueueUploadAsync(expected.Id, default);
                 var upload = await received.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
-                Assert.Equal(expected.Id, upload.Id); Assert.Equal(expected.Token, upload.Authorization);
+                Assert.Equal(expected.ResId, upload.ResId); Assert.Equal(expected.Token, upload.Authorization);
                 for (var attempt = 0; attempt < 100; attempt++)
                 {
                     if ((await restarted.SnapshotAsync(default)).Requests.Single(x => x.Id == expected.Id).Status == "done") break;
@@ -263,7 +323,7 @@ public sealed class CaptureTests
         await using var fixture = new TestFixture();
         var captures = fixture.Provider.GetRequiredService<ICaptureRequestService>();
         var first = Guid.NewGuid(); var second = Guid.NewGuid();
-        await captures.ReceiveAsync(first, "demo", Token, Input, default); await captures.ReceiveAsync(second, "demo", Token, Input, default);
+        await captures.ReceiveAsync(first, "demo", Token, Input, default); await captures.ReceiveAsync(second, "demo", Token, Input with { PartnerId = "456" }, default);
         await captures.ActivateAsync(first, default);
         await Assert.ThrowsAsync<CaptureConflictException>(() => captures.ActivateAsync(second, default));
         var oldSession = await captures.CurrentSessionAsync(default);

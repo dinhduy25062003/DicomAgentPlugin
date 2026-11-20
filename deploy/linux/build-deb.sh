@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 022
 cd "$(dirname "$0")/../.."
-version="${1:-0.2.2}"
+version="${1:-0.2.11}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch' >&2; exit 1; }
 [[ -x publish/linux/host/DicomAgent.Host && -x publish/linux/desktop/DicomAgent.Desktop ]] || { echo 'Run deploy/linux/publish.sh first.' >&2; exit 1; }
 mkdir -p publish/installers
@@ -22,6 +22,7 @@ install -m 0755 deploy/linux/configure-operator-access.sh "$stage/usr/lib/dicom-
 install -m 0755 deploy/linux/debian/dicom-agent-desktop "$stage/usr/bin/"
 install -m 0644 deploy/linux/debian/dicom-agent.desktop "$stage/usr/share/applications/"
 install -m 0644 deploy/linux/debian/dicom-agent.svg "$stage/usr/share/icons/hicolor/scalable/apps/"
+install -D -m 0644 deploy/linux/polkit/org.tdental.dicom-agent.settings.policy "$stage/usr/share/polkit-1/actions/org.tdental.dicom-agent.settings.policy"
 install -m 0644 README.md "$stage/usr/share/doc/dicom-agent/README.vi.md"
 install -m 0644 docs/DEPLOYMENT.md "$stage/usr/share/doc/dicom-agent/DEPLOYMENT.vi.md"
 install -m 0644 docs/LOCALHOST-WEB-SAAS.md "$stage/usr/share/doc/dicom-agent/LOCALHOST-WEB-SAAS.vi.md"
@@ -35,7 +36,7 @@ Priority: optional
 Architecture: amd64
 Maintainer: Local DicomAgent build <root@localhost>
 Installed-Size: $size
-Depends: adduser, passwd, acl, systemd, init-system-helpers (>= 1.54~), libc6 (>= 2.34), libgcc-s1, libstdc++6, zlib1g, libssl3 | libssl3t64, libicu70 | libicu72 | libicu74 | libicu76 | libicu78, libfontconfig1, libfreetype6, libx11-6, libx11-xcb1, libxcb1, libice6, libsm6, libxrandr2, libxi6, libxcursor1, libxext6, libxrender1, libgl1
+Depends: adduser, passwd, acl, pkexec, systemd, init-system-helpers (>= 1.54~), libc6 (>= 2.34), libgcc-s1, libstdc++6, zlib1g, libssl3 | libssl3t64, libicu70 | libicu72 | libicu74 | libicu76 | libicu78, libfontconfig1, libfreetype6, libx11-6, libx11-xcb1, libxcb1, libice6, libsm6, libxrandr2, libxi6, libxcursor1, libxext6, libxrender1, libgl1
 Recommends: xdg-utils
 Description: Offline DICOM receiver and desktop management application
  Receives DICOM C-ECHO/C-STORE over a trusted local network, saves DICOM

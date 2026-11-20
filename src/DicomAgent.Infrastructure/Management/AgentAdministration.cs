@@ -10,6 +10,7 @@ public sealed class AgentAdministration(SettingsStore settings, IInstanceReposit
 {
     public AgentSettings Settings => settings.Current;
     public long MaxImportBytes => active.MaxInstanceBytes;
+    public Task CheckStorageAsync(CancellationToken ct) => SettingsStore.ProbeStorageAsync(storage.Root, ct);
     public Task SaveAsync(AgentSettings value, CancellationToken ct) => settings.SaveAsync(value, ct);
     public async Task<HistoryItem[]> HistoryAsync(CancellationToken ct)
     {

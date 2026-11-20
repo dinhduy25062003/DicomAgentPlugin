@@ -1,0 +1,72 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="Brush.Bg" Color="#F4F8FC" />
+      <SolidColorBrush x:Key="Brush.Surface" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="Brush.Tint" Color="#EAF3FF" />
+      <SolidColorBrush x:Key="Brush.Well" Color="#EDF3FA" />
+      <SolidColorBrush x:Key="Brush.Primary" Color="#2F6FC2" />
+      <SolidColorBrush x:Key="Brush.PrimaryButton" Color="#2F6FC2" />
+      <SolidColorBrush x:Key="Brush.OnPrimary" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="Brush.Text" Color="#243B53" />
+      <SolidColorBrush x:Key="Brush.Muted" Color="#71849A" />
+      <SolidColorBrush x:Key="Brush.Border" Color="#DCE7F3" />
+      <SolidColorBrush x:Key="Brush.Success" Color="#2E7D5B" />
+      <SolidColorBrush x:Key="Brush.Warning" Color="#A66A12" />
+      <SolidColorBrush x:Key="Brush.Danger" Color="#C74B58" />
+      <SolidColorBrush x:Key="Brush.ButtonHover" Color="#D8E8F9" />
+      <SolidColorBrush x:Key="Brush.ButtonPressed" Color="#C6DDF4" />
+      <SolidColorBrush x:Key="Brush.PrimaryHover" Color="#265D9F" />
+      <SolidColorBrush x:Key="Brush.PrimaryPressed" Color="#1F4E86" />
+      <SolidColorBrush x:Key="Brush.DangerHover" Color="#F8E9EB" />
+      <SolidColorBrush x:Key="Brush.DangerPressed" Color="#F2D9DC" />
+      <SolidColorBrush x:Key="Brush.NavHover" Color="#F2F7FC" />
+      <SolidColorBrush x:Key="Brush.Icon" Color="#8497AE" />
+      <SolidColorBrush x:Key="Brush.EmptyIcon" Color="#AFC4DB" />
+      <SolidColorBrush x:Key="Brush.Status.new" Color="#A66A12" />
+      <SolidColorBrush x:Key="Brush.Status.uploading" Color="#2F6FC2" />
+      <SolidColorBrush x:Key="Brush.Status.done" Color="#2E7D5B" />
+      <SolidColorBrush x:Key="Brush.Status.review" Color="#C46420" />
+      <SolidColorBrush x:Key="Brush.Status.unknown" Color="#71849A" />
+      <SolidColorBrush x:Key="Brush.StatusBg.new" Color="#FBF3DE" />
+      <SolidColorBrush x:Key="Brush.StatusBg.uploading" Color="#EAF3FF" />
+      <SolidColorBrush x:Key="Brush.StatusBg.done" Color="#E6F4EE" />
+      <SolidColorBrush x:Key="Brush.StatusBg.review" Color="#FCEFDF" />
+      <SolidColorBrush x:Key="Brush.StatusBg.unknown" Color="#F4F8FC" />
+    </ResourceDictionary>
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="Brush.Bg" Color="#101820" />
+      <SolidColorBrush x:Key="Brush.Surface" Color="#182331" />
+      <SolidColorBrush x:Key="Brush.Tint" Color="#203A58" />
+      <SolidColorBrush x:Key="Brush.Well" Color="#13202E" />
+      <SolidColorBrush x:Key="Brush.Primary" Color="#8CBFFF" />
+      <SolidColorBrush x:Key="Brush.PrimaryButton" Color="#2F6FC2" />
+      <SolidColorBrush x:Key="Brush.OnPrimary" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="Brush.Text" Color="#E5EDF7" />
+      <SolidColorBrush x:Key="Brush.Muted" Color="#A7B7CA" />
+      <SolidColorBrush x:Key="Brush.Border" Color="#304156" />
+      <SolidColorBrush x:Key="Brush.Success" Color="#8DDFBC" />
+      <SolidColorBrush x:Key="Brush.Warning" Color="#F3CC79" />
+      <SolidColorBrush x:Key="Brush.Danger" Color="#FF98A4" />
+      <SolidColorBrush x:Key="Brush.ButtonHover" Color="#263C55" />
+      <SolidColorBrush x:Key="Brush.ButtonPressed" Color="#304A68" />
+      <SolidColorBrush x:Key="Brush.PrimaryHover" Color="#265D9F" />
+      <SolidColorBrush x:Key="Brush.PrimaryPressed" Color="#1F4E86" />
+      <SolidColorBrush x:Key="Brush.DangerHover" Color="#402A34" />
+      <SolidColorBrush x:Key="Brush.DangerPressed" Color="#51303C" />
+      <SolidColorBrush x:Key="Brush.NavHover" Color="#1E3045" />
+      <SolidColorBrush x:Key="Brush.Icon" Color="#9FB6D1" />
+      <SolidColorBrush x:Key="Brush.EmptyIcon" Color="#6D8EB6" />
+      <SolidColorBrush x:Key="Brush.Status.new" Color="#F3CC79" />
+      <SolidColorBrush x:Key="Brush.Status.uploading" Color="#A8CFFF" />
+      <SolidColorBrush x:Key="Brush.Status.done" Color="#8DDFBC" />
+      <SolidColorBrush x:Key="Brush.Status.review" Color="#FFC58C" />
+      <SolidColorBrush x:Key="Brush.Status.unknown" Color="#B5C5D9" />
+      <SolidColorBrush x:Key="Brush.StatusBg.new" Color="#3B3020" />
+      <SolidColorBrush x:Key="Brush.StatusBg.uploading" Color="#1A3658" />
+      <SolidColorBrush x:Key="Brush.StatusBg.done" Color="#173B31" />
+      <SolidColorBrush x:Key="Brush.StatusBg.review" Color="#402A1D" />
+      <SolidColorBrush x:Key="Brush.StatusBg.unknown" Color="#263449" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>
