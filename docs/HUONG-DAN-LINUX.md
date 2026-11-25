@@ -7,13 +7,13 @@ Tài liệu dùng gói Ubuntu/Debian amd64, systemd, libc >= 2.34. Host chạy n
 
 ## 1. Chuẩn bị bộ cài
 
-Lấy `publish/installers/dicom-agent_0.2.16_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
+Lấy `publish/installers/dicom-agent_0.0.1_amd64.deb` từ máy build và copy sang máy Linux đích. Gói self-contained không cần .NET Runtime; `apt` vẫn cần nguồn package/cache để cài đủ dependency hệ điều hành.
 
 Nếu chưa có gói, chạy tại root repo trên máy build có SDK theo `global.json`:
 
 ```bash
 bash deploy/linux/publish.sh
-bash deploy/linux/build-deb.sh 0.2.16
+bash deploy/linux/build-deb.sh 0.0.1
 ```
 
 Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay có thể ghi đè unit của package.
@@ -23,7 +23,7 @@ Không cài song song bằng `.deb` và `deploy/linux/install.sh`; unit cài tay
 Trên máy Linux đích, trong thư mục chứa gói:
 
 ```bash
-sudo apt install ./dicom-agent_0.2.16_amd64.deb
+sudo apt install ./dicom-agent_0.0.1_amd64.deb
 ```
 
 Gói tự cấp quyền cho tài khoản đang gọi sudo và tự bật dịch vụ. Không cần đăng xuất hoặc chạy lệnh thêm group. Mở UI từ menu **DICOM Desktop Agent** hoặc:
