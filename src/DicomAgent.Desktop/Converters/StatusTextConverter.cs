@@ -7,10 +7,10 @@ public sealed class StatusTextConverter : IValueConverter
 {
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value switch
     {
-        "new" => "Mới nhận",
+        "new" => "Mới",
         "uploading" => "Đang gửi ảnh",
-        "done" => "Đã gửi ảnh",
-        "review" => "Cần kiểm tra",
+        "done" => "Hoàn tất",
+        "error" => "Lỗi",
         "Running" => "Đang chạy",
         "Stopped" => "Đã dừng",
         "Error" => "Lỗi",

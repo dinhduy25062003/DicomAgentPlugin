@@ -10,9 +10,9 @@ namespace DicomAgent.Application.Services;
 // CaptureRequest.Status state machine:
 //   new      -> uploading  (operator pressed Done with confirmed images)
 //   uploading-> done       (SaaS answered 2xx)
-//   uploading-> review     (uncertain outcome: operator must check SaaS attachments first)
+//   uploading-> error      (uncertain outcome: operator must check SaaS attachments first)
 //   uploading-> new        (definitive rejection: request never sent, or 401/403/404/413/415/429)
-//   review   -> done | new (operator resolves after checking SaaS manually)
+//   error    -> done | new (operator resolves after checking SaaS manually)
 //
 // All state transitions are serialized through `gate`. `records` is the in-memory
 // mirror of the JSON repository; LoadAsync populates it once per service lifetime.
@@ -49,19 +49,23 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
             if (boundTenant != tenant) throw new InvalidDataException("Request storage contains mixed tenants.");
             var recovered = RecoverAfterRestart(value);
             if (recovered != value) await repository.SaveAsync(recovered, ct);
-            records[recovered.Request.Id] = recovered;
+            // Older installs stored the failed-upload state as "review"; read it as
+            // "error" without rewriting the file until the record is saved again.
+            records[recovered.Request.Id] = recovered.Request.Status == "review"
+                ? recovered with { Request = recovered.Request with { Status = "error" } }
+                : recovered;
         }
         loaded = true;
     }
 
     // A crash during upload must not wedge the request in "uploading": park it in
-    // "review" so the operator checks the SaaS before any further attempt.
+    // "error" so the operator checks the SaaS before any further attempt.
     private static StoredCapture RecoverAfterRestart(StoredCapture value)
     {
         if (value.Request.Status != "uploading") return value;
         return value with { Request = value.Request with
         {
-            Status = "review",
+            Status = "error",
             LastError = "App restarted during upload. Check SaaS attachments before allowing another attempt."
         } };
     }
@@ -111,7 +115,7 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
                 return existing.Request;
             }
             // Only an unfinished request ("new") with the same business key blocks a
-            // new one; done/review/uploading requests do not.
+            // new one; done/error/uploading requests do not.
             if (records.Values.Any(value => value.Request.Status == "new" && value.Request.Info.ResModel == input.ResModel &&
                 value.Request.Info.ResId == input.ResId && value.Request.Info.PartnerId == input.PartnerId))
                 throw new CaptureConflictException("A new request with the same resModel, resId and PartnerId already exists in local storage.");
@@ -160,9 +164,9 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
             if (id is not null)
             {
                 if (Get(id.Value).Request.Status != "new")
-                    throw new CaptureConflictException("Only a new request can receive images.");
+                    throw new CaptureConflictException("Chỉ có thể thay đổi trên yêu cầu mới");
                 if (active is not null && active != id)
-                    throw new CaptureConflictException("Stop the current capture before starting another request.");
+                    throw new CaptureConflictException("Vui lòng dừng tiến trình nhận ảnh hiện tại để có thể thực hiện yêu cầu mới");
             }
             if (active != id) activeGeneration = Guid.NewGuid();
             active = id;
@@ -215,7 +219,7 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
         {
             await LoadAsync(ct);
             var value = Get(id);
-            if (value.Request.Status is "uploading" or "review")
+            if (value.Request.Status is "uploading" or "error")
                 throw new CaptureConflictException("Resolve upload status before deleting this request or its images.");
             if (fileId is not null)
             {
@@ -262,7 +266,7 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
         {
             await LoadAsync(ct);
             var value = Get(id);
-            if (value.Request.Status != "review") throw new CaptureConflictException("This request does not need review.");
+            if (value.Request.Status != "error") throw new CaptureConflictException("This request does not need review.");
             var request = value.Request with
             {
                 Status = alreadyUploaded ? "done" : "new",
@@ -331,7 +335,7 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
 
     // Maps the raw upload outcome to the next request state and a safe operator
     // message. Definitive rejections go back to "new"; anything where the SaaS may
-    // already have accepted files goes to "review" instead of retrying blindly.
+    // already have accepted files goes to "error" instead of retrying blindly.
     private static (string Status, string? Error) ClassifyUpload(AttachmentUploadResult result)
     {
         if (result.StatusCode is >= 200 and <= 299)
@@ -339,9 +343,9 @@ public sealed class CaptureRequestService(LocalApiOptions options, ICaptureReque
         if (result.StatusCode is 401 or 403 or 404 or 413 or 415 or 429)
             return ("new", $"SaaS rejected upload (HTTP {result.StatusCode}). For expired credentials, re-send the same request from the web with its original Idempotency-Key.");
         if (result.StatusCode is not null)
-            return ("review", $"SaaS returned HTTP {result.StatusCode}. Check attachments on SaaS before retrying; some files may have been accepted.");
+            return ("error", $"SaaS returned HTTP {result.StatusCode}. Check attachments on SaaS before retrying; some files may have been accepted.");
         if (result.RequestSent)
-            return ("review", "Upload result is uncertain. Check attachments on SaaS before allowing another attempt. Local images are retained.");
+            return ("error", "Upload result is uncertain. Check attachments on SaaS before allowing another attempt. Local images are retained.");
         return ("new", "Could not prepare upload. Check that all selected files and saved credentials are available. Local images are retained.");
     }
 }

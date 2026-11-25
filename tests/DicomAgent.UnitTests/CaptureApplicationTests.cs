@@ -47,9 +47,9 @@ public sealed class CaptureApplicationTests
 
     [Theory]
     [InlineData(401, true, "new")]
-    [InlineData(503, true, "review")]
+    [InlineData(503, true, "error")]
     [InlineData(null, false, "new")]
-    [InlineData(null, true, "review")]
+    [InlineData(null, true, "error")]
     public async Task UploadOutcomeControlsWhetherAnotherAttemptNeedsReview(int? httpStatus, bool sent, string expected)
     {
         var client = new RecordingClient { Result = new(httpStatus, sent) };
@@ -60,7 +60,7 @@ public sealed class CaptureApplicationTests
         await service.ProcessUploadAsync(id, default);
         var request = Assert.Single((await service.SnapshotAsync(default)).Requests);
         Assert.Equal(expected, request.Status); Assert.Single(request.Files); Assert.Null(request.CompletedAtUtc);
-        if (expected == "review") await Assert.ThrowsAsync<CaptureConflictException>(() => service.QueueUploadAsync(id, default));
+        if (expected == "error") await Assert.ThrowsAsync<CaptureConflictException>(() => service.QueueUploadAsync(id, default));
     }
 
     [Fact]
@@ -79,6 +79,7 @@ public sealed class CaptureApplicationTests
     [Theory]
     [InlineData("done")]
     [InlineData("uploading")]
+    [InlineData("error")]
     [InlineData("review")]
     public async Task NonNewStoredRequestAllowsOneNewRequestForTheSameBusinessKey(string status)
     {
@@ -138,7 +139,7 @@ public sealed class CaptureApplicationTests
     }
 
     [Fact]
-    public async Task RestartDuringUploadParksTheRequestInReviewUntilTheOperatorChecksSaaS()
+    public async Task RestartDuringUploadParksTheRequestInErrorUntilTheOperatorChecksSaaS()
     {
         var repository = new MemoryRepository(); var id = Guid.NewGuid();
         await repository.BindTenantAsync("demo", default);
@@ -148,7 +149,7 @@ public sealed class CaptureApplicationTests
         var restarted = Create(repository, new RecordingClient());
         var snapshot = await restarted.SnapshotAsync(default);
         var request = Assert.Single(snapshot.Requests);
-        Assert.Equal("review", request.Status);
+        Assert.Equal("error", request.Status);
         Assert.Contains("restarted", request.LastError, StringComparison.OrdinalIgnoreCase);
         Assert.Single(request.Files);
         // Review blocks a blind retry and deletion; the operator resolves it explicitly.
@@ -160,6 +161,20 @@ public sealed class CaptureApplicationTests
         await restarted.QueueUploadAsync(id, default);
         await restarted.ProcessUploadAsync(id, default);
         Assert.Equal("done", Assert.Single((await restarted.SnapshotAsync(default)).Requests).Status);
+    }
+
+    [Fact]
+    public async Task LegacyStoredReviewStatusIsReadAsErrorWithoutRewritingStorage()
+    {
+        var repository = new MemoryRepository(); var id = Guid.NewGuid();
+        await repository.BindTenantAsync("demo", default);
+        var legacy = new StoredCapture(new(id, "demo", Input, DateTime.UtcNow, "review", []), "test-only:Bearer original", "https://demo.tdental.vn/");
+        await repository.SaveAsync(legacy, default);
+        var service = Create(repository, new RecordingClient());
+        Assert.Equal("error", Assert.Single((await service.SnapshotAsync(default)).Requests).Status);
+        Assert.Equal("review", (await repository.LoadAsync(default)).Requests.Single().Request.Status);
+        await service.ResolveAsync(id, true, default);
+        Assert.Equal("done", Assert.Single((await service.SnapshotAsync(default)).Requests).Status);
     }
 
     [Fact]

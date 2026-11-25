@@ -35,7 +35,7 @@ Controller (Host) → Application service/use case → interface (Application/Ab
 - Token không bao giờ xuất hiện plaintext trong log, response, hoặc UI.
 - Chỉ chặn tạo mới khi đã có request `new` cùng `resModel + resId + PartnerId` (HTTP 409); request `done` cho phép tạo mới.
 - `Idempotency-Key` + body giống nhau = cập nhật token, không tạo request mới, không mất ảnh.
-- Không tự retry upload khi server có thể đã nhận ảnh; trạng thái `review` buộc người dùng xác nhận.
+- Không tự retry upload khi server có thể đã nhận ảnh; trạng thái `error` buộc người dùng xác nhận.
 - Xóa request hoặc bỏ ảnh khỏi ca không xóa DICOM gốc trong storage.
 - Cấu hình Receiver vẫn giữ snapshot lúc khởi động. Theo yêu cầu mới từ 0.2.8, nút Lưu Desktop tự cấp quyền thư mục và restart service qua helper polkit/UAC; API management save cũ giữ nguyên hành vi chỉ lưu. Không hot-mutate snapshot khi đang nhận ảnh.
 

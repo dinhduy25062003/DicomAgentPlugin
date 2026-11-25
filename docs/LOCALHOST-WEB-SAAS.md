@@ -1,10 +1,10 @@
-# Luồng web cùng máy → app local → SaaS (0.2.15)
+# Luồng web cùng máy → app local → SaaS (0.2.16)
 
 Tài liệu này mô tả runtime hiện tại và thay thế đề xuất đăng nhập/SignalR trong `THIET-KE-TICH-HOP-TENANT.md`. Không cần đăng nhập riêng trong app. Browser trên **cùng máy** gọi API loopback khi dịch vụ Host đang chạy; backend SaaS không gọi localhost. App chỉ nhận ảnh từ máy chụp, không điều khiển việc phát tia/chụp.
 
 ## Sử dụng
 
-1. Cài bản 0.2.15, mở Desktop. Dịch vụ `DicomAgent` (Windows) / `dicom-agent.service` (Linux) tự chạy sau cài đặt và khởi động máy; API mặc định `http://127.0.0.1:17890`. Đóng Desktop xuống tray hoặc thoát Desktop không dừng Host/API.
+1. Cài bản 0.2.16, mở Desktop. Dịch vụ `DicomAgent` (Windows) / `dicom-agent.service` (Linux) tự chạy sau cài đặt và khởi động máy; API mặc định `http://127.0.0.1:17890`. Đóng Desktop xuống tray hoặc thoát Desktop không dừng Host/API.
 2. Vào **Cấu hình kết nối**: đặt AE Title, IP listen của máy Agent, port DICOM, IP/Calling AE của máy chụp, thư mục lưu ảnh. Bấm **Lưu cấu hình** rồi xác thực quản trị nếu được yêu cầu; app tự cấp quyền thư mục, restart service và kết nối lại. Không cần chạy lệnh. Trên console máy chụp, đặt đích là IP LAN của Agent + port DICOM + AE Title. IP listen không phải IP của máy chụp.
 3. Web gửi request. Request hợp lệ đầu tiên sẽ gắn installation vào một `TenantName` cố định (một nha khoa/chi nhánh); app không hỏi lại tenant. Request khác tenant bị HTTP 409, kể cả đã xóa hết request hoặc restart app. Tenant đang gắn hiển thị trên UI. Không cung cấp nút đổi tenant để tránh chuyển nhầm dữ liệu.
 4. **Quản lý request**: tìm theo tên đối tượng, model, khách, mã khách, dịch vụ, resId; lọc trạng thái; bấm tên để xem detail; **Thực hiện** để mở màn hình dịch vụ và bật nhận ảnh. **Xóa request** cần xác nhận và chỉ xóa dữ liệu request; file DICOM gốc vẫn nằm trong kho local.
@@ -103,7 +103,9 @@ Multipart:
 
 Các field EntityName/ModelName/serviceName/PartnerId/PartnerName dùng cho UI/local, không thêm vào DTO upload đã có. Không gửi local path thay bytes. Không upload bên trong response C-STORE. API IrAttachments hiện trả HTTP thành công sau khi xử lý; app không tự refresh JWT vì chưa có hợp đồng endpoint refresh. Khi token hết hạn, web gửi lại **cùng ca/key/body** với Authorization mới, rồi người dùng bấm Done lại.
 
-Lỗi xác thực/đầu vào giữ ảnh tại local, hiển thị lỗi; lỗi mạng/timeout/5xx hoặc restart lúc đang upload chuyển `review`. Người dùng kiểm tra đủ file trên SaaS rồi chọn **Đã kiểm tra: đủ ảnh** để đánh dấu done, hoặc **chưa có ảnh, cho thử lại** để trở lại new. Nếu SaaS đã nhận một phần, xử lý/đối chiếu trên SaaS trước khi cho thử lại; app không biết file IDs vì API hiện không trả receipt từng file. Không tự retry mù. App không thể bảo đảm exactly-once khi server đã ghi ảnh nhưng mất response; giữ luồng review và xác nhận trước khi gửi lại.
+Lỗi xác thực/đầu vào giữ ảnh tại local, hiển thị lỗi; lỗi mạng/timeout/5xx hoặc restart lúc đang upload chuyển `error`. Người dùng kiểm tra đủ file trên SaaS rồi chọn **Đã kiểm tra: đủ ảnh** để đánh dấu done, hoặc **chưa có ảnh, cho thử lại** để trở lại new. Nếu SaaS đã nhận một phần, xử lý/đối chiếu trên SaaS trước khi cho thử lại; app không biết file IDs vì API hiện không trả receipt từng file. Không tự retry mù. App không thể bảo đảm exactly-once khi server đã ghi ảnh nhưng mất response; giữ luồng error và xác nhận trước khi gửi lại.
+
+Bốn trạng thái request: `new` (Mới), `uploading` (Đang gửi ảnh), `done` (Hoàn tất), `error` (Lỗi). Request cũ lưu `review` được đọc thành `error`, file JSON không bị ghi lại cho tới lần lưu kế tiếp.
 
 ## Dữ liệu, cấu hình, phát triển
 
@@ -158,7 +160,7 @@ Desktop → HTTP POST /api/management/commands (capture-done)
       IRequestSecretStore.Unprotect (token riêng của ca)
       ISaasAttachmentClient.UploadAsync → Infrastructure/Capture/SaasAttachmentClient
         HttpClient.SendAsync → SaaS /api/IrAttachments
-      ICaptureRequestRepository.SaveAsync (done/new/review)
+      ICaptureRequestRepository.SaveAsync (done/new/error)
 ```
 
 Đặt breakpoint lần lượt tại Controller `Create`, Application `ReceiveAsync`, repository `SaveAsync`; khi Done đặt breakpoint tại Application `ProcessUploadAsync` và Infrastructure `SaasAttachmentClient.UploadAsync`. Upload chạy qua queue/worker nên không nằm cùng call stack HTTP tạo ca. Khi request không vào Controller, kiểm tra Host/Origin middleware trong `Host/Api/LocalApiServer`.
@@ -168,7 +170,7 @@ Controller giữ nguyên endpoint/header/body/status và CORS; JSON, tenant-bind
 
 ## Cài đặt và tự khởi động từ 0.2.2
 
-Linux: `sudo apt install ./dicom-agent_0.2.15_amd64.deb`, sau đó mở DICOM Desktop Agent từ menu. Gói có dependency `acl`, tự thêm tài khoản gọi sudo vào nhóm operator và cấp quyền UID trực tiếp, nên không cần usermod hay đăng xuất. Host ghi desktop-connection.json chứa port HTTP và khóa local; ACL readonly cho operator được kế thừa từ thư mục data. Không đổi quyền other sang đọc/ghi toàn cục, không mở quyền thư mục request/token riêng tư. Khi cài bằng root không qua sudo/polkit, quản trị có thể chỉ định DICOM_AGENT_OPERATOR_USER.
+Linux: `sudo apt install ./dicom-agent_0.2.16_amd64.deb`, sau đó mở DICOM Desktop Agent từ menu. Gói có dependency `acl`, tự thêm tài khoản gọi sudo vào nhóm operator và cấp quyền UID trực tiếp, nên không cần usermod hay đăng xuất. Host ghi desktop-connection.json chứa port HTTP và khóa local; ACL readonly cho operator được kế thừa từ thư mục data. Không đổi quyền other sang đọc/ghi toàn cục, không mở quyền thư mục request/token riêng tư. Khi cài bằng root không qua sudo/polkit, quản trị có thể chỉ định DICOM_AGENT_OPERATOR_USER.
 
 Windows: chạy Setup 0.2.5, chọn đúng tài khoản vận hành. Bộ cài cấp SID trực tiếp trên data, cài/bật service Automatic và đợi Running. Mở UI ngay, không cần làm mới group token bằng logout.
 

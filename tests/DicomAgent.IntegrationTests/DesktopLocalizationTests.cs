@@ -7,10 +7,10 @@ namespace DicomAgent.IntegrationTests;
 public sealed class DesktopLocalizationTests
 {
     [Theory]
-    [InlineData("new", "Mới nhận")]
+    [InlineData("new", "Mới")]
     [InlineData("uploading", "Đang gửi ảnh")]
-    [InlineData("done", "Đã gửi ảnh")]
-    [InlineData("review", "Cần kiểm tra")]
+    [InlineData("done", "Hoàn tất")]
+    [InlineData("error", "Lỗi")]
     [InlineData("Running", "Đang chạy")]
     [InlineData("Stopped", "Đã dừng")]
     [InlineData("Error", "Lỗi")]

@@ -4,7 +4,7 @@ Unicode true
 !include "LogicLib.nsh"
 !include "x64.nsh"
 !ifndef VERSION
-!define VERSION "0.2.15"
+!define VERSION "0.2.16"
 !endif
 !ifndef ROOT
 !error "ROOT must be the absolute repository path"

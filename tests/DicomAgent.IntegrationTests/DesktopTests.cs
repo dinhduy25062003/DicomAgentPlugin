@@ -64,12 +64,12 @@ public sealed class DesktopTests
 
             var statusFilter = window.GetLogicalDescendants().OfType<ComboBox>()
                 .Single(combo => combo.Items.Count == 5);
-            Assert.Equal(new[] { "Tất cả trạng thái", "Mới nhận", "Đã gửi ảnh", "Đang gửi ảnh", "Cần kiểm tra" },
+            Assert.Equal(new[] { "Tất cả trạng thái", "Mới", "Hoàn tất", "Đang gửi ảnh", "Lỗi" },
                 statusFilter.Items.Cast<ComboBoxItem>().Select(item => item.Content as string));
             foreach (var (code, label) in new[]
             {
-                ("new", "Mới nhận"), ("uploading", "Đang gửi ảnh"),
-                ("done", "Đã gửi ảnh"), ("review", "Cần kiểm tra")
+                ("new", "Mới"), ("uploading", "Đang gửi ảnh"),
+                ("done", "Hoàn tất"), ("error", "Lỗi")
             })
             {
                 var localizedRequest = request with { Status = code };
@@ -124,7 +124,7 @@ public sealed class DesktopTests
                 vm.SelectedTab = 0;
                 window.MouseMove(new Point(250, 10));
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-                var status = window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == "Mới nhận");
+                var status = window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == "Mới");
                 Assert.Equal(Color.Parse(themeIndex == 0 ? "#A66A12" : "#F3CC79"), BrushColor(status.Foreground));
                 Assert.Equal(Color.Parse(themeIndex == 0 ? "#FBF3DE" : "#3B3020"), BrushColor(((Border)status.Parent!).Background));
                 var primary = window.GetVisualDescendants().OfType<Button>()

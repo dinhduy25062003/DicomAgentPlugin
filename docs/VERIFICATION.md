@@ -1,5 +1,15 @@
 # Báo cáo triển khai và kiểm chứng
 
+## Bốn trạng thái request 0.2.16 — 25/11/2026
+
+- Đổi bộ trạng thái global của request thành `new` (Mới), `uploading` (Đang gửi ảnh), `done` (Hoàn tất), `error` (Lỗi); `review` thay bằng `error` trong service, bộ lọc danh sách và nhãn Desktop.
+- Giữ nguyên nghiệp vụ: upload lỗi chắc chắn (401/403/404/413/415/429 hoặc không gửi được) vẫn trả về `new` để sửa và gửi lại; kết quả không chắc chắn vẫn chặn gửi lại và xóa cho tới khi người dùng xác nhận, giờ dưới mã `error`.
+- Request cũ lưu `review` được đọc thành `error` trong bộ nhớ, không ghi lại file JSON lúc khởi động; lần lưu kế tiếp mới ghi `error`. Có unit test riêng cho đường đọc này.
+- Đổi giá trị trạng thái trả cho web qua API local (`review` → `error`); web cần so khớp `error` thay vì `review`.
+- `dotnet test DicomAgent.sln -c Release`: 45 unit + 63 integration pass, build Release 0 warning/0 error.
+- PASS: `bash deploy/release.sh` tự tăng 0.2.15 → 0.2.16, tạo `DicomAgent-0.2.16-win-x64-Setup.exe` và `dicom-agent_0.2.16_amd64.deb`, đối chiếu payload/md5sums và cập nhật `SHA256SUMS`, exit 0.
+- NOT RUN: cài/nâng cấp thật trên Windows/Linux trong phiên này.
+
 ## Việt hóa trạng thái và sửa lỗi release 0.2.15 — 25/11/2026
 
 - Tái hiện lỗi release 0.2.14: 43 unit PASS, integration có 1 FAIL tại `DesktopTests.HeadlessWindowLoadsRequestsCaptureSettingsAndStatusBinding`, do test tìm `Running` sau khi giao diện đã đổi thành `Đang chạy`; test màu trạng thái cũng còn tìm `new`.
@@ -134,7 +144,7 @@ Danh sách file source/config/deploy/test đầy đủ: [FILES.md](FILES.md). H�
 - Tenant request đầu tiên được giữ sau restart/xóa hết ca; khác tenant và cùng key khác payload bị từ chối; token không xuất hiện plaintext trong request JSON hay response.
 - C-STORE thật và IPC import bytes → đúng request → xem trước raw DICOM → multipart tới SaaS giả lập; kiểm tra Authorization/TenantName/ResId/ResModel/Attachments.Tenant/Attachments.Files, chặn Done lặp và ảnh đến muộn.
 - Chặn chuyển ca active; association/phiên cũ không gán sang ca mới hoặc phiên nhận mới; chặn upload khi danh sách ảnh thay đổi sau xác nhận.
-- HTTP 401/503/302 và restart lúc upload: giữ file, trạng thái new/review, không đi theo redirect, có thao tác đối chiếu thủ công.
+- HTTP 401/503/302 và restart lúc upload: giữ file, trạng thái new/error, không đi theo redirect, có thao tác đối chiếu thủ công.
 - IPC tiếp tục đọc danh sách khi client khác đang import dở. Regression settings/history/DB failure/tray/Host restart vẫn pass.
 - Avalonia headless + Skia render ba màn hình vào `publish/screenshots/screen-{1,2,3}.png`, đã xem và kiểm tra bố cục. Đây là dữ liệu tổng hợp, không phải ảnh bệnh nhân thật.
 - Chưa chạy cài/gỡ Windows hoặc kiểm tra quyền Local Network Access từ web HTTPS thực tế; chưa gọi API SaaS bằng tài khoản thật. API SaaS được mô phỏng theo DTO IrAttachments trong source TDental.

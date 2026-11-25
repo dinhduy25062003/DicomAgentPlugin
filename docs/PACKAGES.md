@@ -1,6 +1,8 @@
 # Gói cài đặt Windows và Ubuntu/Debian
 
-Phiên bản hiện tại: **0.2.15**, CPU **x64/amd64**. Host và Desktop đều self-contained .NET 8.
+Phiên bản hiện tại: **0.2.16**, CPU **x64/amd64**. Host và Desktop đều self-contained .NET 8.
+
+Bản 0.2.16 đổi bộ trạng thái request thành bốn giá trị dùng chung cho Desktop, bộ lọc danh sách và API local: `new` (Mới), `uploading` (Đang gửi ảnh), `done` (Hoàn tất), `error` (Lỗi). Trạng thái `review` cũ được đọc thành `error` khi nạp, không ghi lại file JSON cho tới lần lưu kế tiếp; luồng xác nhận trước khi gửi lại giữ nguyên.
 
 Bản 0.2.15 Việt hóa nhãn trạng thái ca, trạng thái dịch vụ, bộ lọc và thông báo kết quả gửi ảnh/kết nối trên Desktop. Mã trạng thái API và dữ liệu lưu giữ nguyên. Test giao diện được cập nhật để kiểm tra nhãn tiếng Việt, màu trạng thái và mã gốc.
 
@@ -12,7 +14,7 @@ Bản 0.2.8 thêm Lưu và áp dụng tự động: app xác thực quản trị
 
 Bản Windows **0.1.1** bổ sung SCU tự cài vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`), Desktop không mở console và bấm X ẩn xuống system tray. Menu tray có Open và Exit desktop; Exit không dừng service. Vị trí trong nhóm hidden icons do Windows quyết định. Tạo ảnh thử vào TEMP, không ghi vào thư mục binaries của simulator.
 
-Artifact mới: `publish/installers/DicomAgent-0.2.15-win-x64-Setup.exe`.
+Artifact mới: `publish/installers/DicomAgent-0.2.16-win-x64-Setup.exe`.
 
 1. Copy duy nhất file Setup.exe sang máy Windows x64, thoát Desktop Agent đang mở qua menu tray → **Exit desktop** nếu có (bấm X chỉ ẩn).
 2. Chạy Setup.exe, chấp nhận elevation để cài service và ACL.
@@ -29,12 +31,12 @@ Gói chưa ký Authenticode. Chưa kiểm thử chạy/cài/gỡ thực tế tr�
 
 ## Ubuntu/Debian `.deb`
 
-Artifact: `publish/installers/dicom-agent_0.2.15_amd64.deb`.
+Artifact: `publish/installers/dicom-agent_0.2.16_amd64.deb`.
 
 Tại thư mục chứa file tải về:
 
 ```bash
-sudo apt install ./dicom-agent_0.2.15_amd64.deb
+sudo apt install ./dicom-agent_0.2.16_amd64.deb
 ```
 
 Gói tự nhận tài khoản gọi sudo, cấp ACL cho phiên hiện tại và bật service ngay. Không cần usermod hoặc đăng xuất. Sau đó mở **DICOM Desktop Agent** trong menu ứng dụng hoặc chạy:
@@ -86,19 +88,19 @@ Trên Linux:
 
 ```bash
 bash deploy/linux/publish.sh
-bash deploy/linux/build-deb.sh 0.2.15
+bash deploy/linux/build-deb.sh 0.2.16
 # Để build Windows installer, cần PowerShell và NSIS trên máy build:
 pwsh -NoProfile -File deploy/windows/publish.ps1
 # Cài makensis qua package nsis trên máy build nếu chưa có, hoặc đặt MAKENSIS/NSISDIR cho tool unpack cục bộ:
-bash deploy/windows/build-installer.sh 0.2.15
+bash deploy/windows/build-installer.sh 0.2.16
 ```
 
 Trên Windows, cài NSIS cho máy build rồi:
 
 ```powershell
-./deploy/windows/build-installer.ps1 -Version 0.2.15
+./deploy/windows/build-installer.ps1 -Version 0.2.16
 # Nếu binaries đã publish:
-./deploy/windows/build-installer.ps1 -Version 0.2.15 -SkipPublish
+./deploy/windows/build-installer.ps1 -Version 0.2.16 -SkipPublish
 ```
 
 NSIS chỉ cần trên máy build, không cần trên máy khách. Công cụ Debian `dpkg-deb` cũng chỉ cần cho build hoặc cài gói deb. SHA-256 của hai artifact nằm trong `publish/installers/SHA256SUMS`.

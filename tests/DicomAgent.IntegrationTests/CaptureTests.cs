@@ -281,9 +281,9 @@ public sealed class CaptureTests
 
     [Theory]
     [InlineData(401, "new")]
-    [InlineData(503, "review")]
-    [InlineData(302, "review")]
-    public async Task UploadFailuresKeepImagesAndRequireReviewForUncertainResults(int status, string expected)
+    [InlineData(503, "error")]
+    [InlineData(302, "error")]
+    public async Task UploadFailuresKeepImagesAndRequireErrorResolutionForUncertainResults(int status, string expected)
     {
         var port = TestFixture.FreePort();
         var builder = WebApplication.CreateSlimBuilder(); builder.Logging.ClearProviders(); builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
@@ -305,7 +305,7 @@ public sealed class CaptureTests
             await WaitStatusAsync(captures, expected);
             var request = Assert.Single((await captures.SnapshotAsync(default)).Requests);
             Assert.Null(request.CompletedAtUtc); Assert.NotNull(request.LastError); Assert.True(File.Exists(Assert.Single(request.Files).FilePath));
-            if (expected == "review")
+            if (expected == "error")
             {
                 await Assert.ThrowsAsync<CaptureConflictException>(() => captures.QueueUploadAsync(id, default));
                 await captures.ResolveAsync(id, false, default);
@@ -318,7 +318,7 @@ public sealed class CaptureTests
     }
 
     [Fact]
-    public async Task ActiveCaptureCannotSwitchAndInterruptedUploadIsRecoveredForReview()
+    public async Task ActiveCaptureCannotSwitchAndInterruptedUploadIsRecoveredAsError()
     {
         await using var fixture = new TestFixture();
         var captures = fixture.Provider.GetRequiredService<ICaptureRequestService>();
@@ -343,7 +343,7 @@ public sealed class CaptureTests
         await File.WriteAllTextAsync(path, json.ToJsonString());
         var restarted = fixture.NewCaptureService();
         var snapshot = await restarted.SnapshotAsync(default);
-        Assert.Null(snapshot.ActiveRequestId); Assert.Equal("review", snapshot.Requests.Single(x => x.Id == first).Status);
+        Assert.Null(snapshot.ActiveRequestId); Assert.Equal("error", snapshot.Requests.Single(x => x.Id == first).Status);
         await restarted.ResolveAsync(first, true, default);
         Assert.Equal("done", (await restarted.SnapshotAsync(default)).Requests.Single(x => x.Id == first).Status);
     }

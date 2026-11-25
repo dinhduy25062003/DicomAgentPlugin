@@ -47,7 +47,7 @@ public sealed partial class MainViewModel
     public bool HasCurrentRequest => CurrentRequest is not null;
     public bool IsEditable => CurrentRequest?.Status == "new" && !busy;
     public bool CanStopCapture => IsEditable && activeRequestId == CurrentRequest?.Id;
-    public bool IsReview => CurrentRequest?.Status == "review";
+    public bool IsUploadError => CurrentRequest?.Status == "error";
     public string ActiveCapture => activeRequestId is null ? "Chưa có ca đang nhận ảnh" : "Đang nhận DICOM cho: " + allRequests.FirstOrDefault(x => x.Id == activeRequestId)?.Info.PartnerName;
     public string CaptureNotice => CurrentRequest is null ? "Chọn request ở danh sách để xem chi tiết hoặc thực hiện." :
         activeRequestId == CurrentRequest.Id ? "Đang nhận ảnh cho ca này. Kiểm tra tên khách hàng, tên dịch vụ và đối tượng trước khi bấm Hoàn tất." :
@@ -79,7 +79,7 @@ public sealed partial class MainViewModel
         {
             if (CurrentRequest is null || !Verified) throw new InvalidOperationException("Kiểm tra đúng khách/ca và đánh dấu xác nhận ảnh trước khi bấm Hoàn tất.");
             EnsureSuccess(await client.SendAsync(new("capture-done", RequestId: CurrentRequest.Id, FileIds: CurrentRequest.Files.Select(x => x.Id).ToArray())));
-            Verified = false; await RefreshCapturesAsync(); Message = "Đang đẩy ảnh lên SaaS. Trạng thái sẽ chuyển thành Đã gửi ảnh sau khi máy chủ xác nhận.";
+            Verified = false; await RefreshCapturesAsync(); Message = "Đang đẩy ảnh lên SaaS. Trạng thái sẽ chuyển thành Hoàn tất sau khi máy chủ xác nhận.";
         }));
         RemoveFileCommand = new AsyncCommand(() => RunCaptureAsync(async () =>
         {
@@ -90,14 +90,14 @@ public sealed partial class MainViewModel
     }
     private void NotifyCapture()
     {
-        foreach (var name in new[] { nameof(IsEditable), nameof(CanStopCapture), nameof(IsReview), nameof(ActiveCapture), nameof(CaptureNotice), nameof(HasCurrentRequest) })
+        foreach (var name in new[] { nameof(IsEditable), nameof(CanStopCapture), nameof(IsUploadError), nameof(ActiveCapture), nameof(CaptureNotice), nameof(HasCurrentRequest) })
             PropertyChanged?.Invoke(this, new(name));
     }
     public void ViewRequest(CaptureRequest request)
     {
         CurrentRequest = request; SelectedTab = 1; Verified = false; UpdateFiles();
     }
-    private static readonly string[] FilterStatuses = ["", "new", "done", "uploading", "review"];
+    private static readonly string[] FilterStatuses = ["", "new", "done", "uploading", "error"];
 
     private void FilterRequests()
     {
