@@ -9,6 +9,7 @@ Build both Linux amd64 .deb and Windows x64 Setup.exe on Linux.
 Without VERSION, increments the patch version in Directory.Build.props.
 Runs restore, build, tests, fresh publish, installer verification and SHA256SUMS.
 Requires .NET SDK, PowerShell, NSIS, Python 3.11+, dpkg-deb, 7z and flock.
+SDK discovery: PATH, DOTNET_ROOT, ~/.dotnet and standard system locations.
 NSIS overrides: MAKENSIS and NSISDIR; also searches the per-user build cache.
 Does not install the application, restart services, commit or push.
 HELP
@@ -16,11 +17,11 @@ HELP
 fi
 [[ $# -le 1 ]] || { echo 'Usage: bash deploy/release.sh [VERSION]' >&2; exit 1; }
 
-for dependency in dotnet pwsh python3 dpkg-deb 7z flock; do
+for dependency in pwsh python3 dpkg-deb 7z flock; do
     command -v "$dependency" >/dev/null || { echo "Missing build tool: $dependency" >&2; exit 1; }
 done
 python3 -c 'import sys; sys.version_info >= (3, 11) or sys.exit("Python 3.11+ is required.")'
-dotnet --version
+source deploy/use-dotnet.sh
 compiler="${MAKENSIS:-$(command -v makensis || true)}"
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/dicom-agent-build/nsis"
 if [[ -z "$compiler" && -x "$cache/usr/bin/makensis" ]]; then

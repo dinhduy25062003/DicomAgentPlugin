@@ -1,10 +1,10 @@
-# Luồng web cùng máy → app local → SaaS (0.2.11)
+# Luồng web cùng máy → app local → SaaS (0.2.12)
 
 Tài liệu này mô tả runtime hiện tại và thay thế đề xuất đăng nhập/SignalR trong `THIET-KE-TICH-HOP-TENANT.md`. Không cần đăng nhập riêng trong app. Browser trên **cùng máy** gọi API loopback khi dịch vụ Host đang chạy; backend SaaS không gọi localhost. App chỉ nhận ảnh từ máy chụp, không điều khiển việc phát tia/chụp.
 
 ## Sử dụng
 
-1. Cài bản 0.2.11, mở Desktop. Dịch vụ `DicomAgent` (Windows) / `dicom-agent.service` (Linux) tự chạy sau cài đặt và khởi động máy; API mặc định `http://127.0.0.1:17890`. Đóng Desktop xuống tray hoặc thoát Desktop không dừng Host/API.
+1. Cài bản 0.2.12, mở Desktop. Dịch vụ `DicomAgent` (Windows) / `dicom-agent.service` (Linux) tự chạy sau cài đặt và khởi động máy; API mặc định `http://127.0.0.1:17890`. Đóng Desktop xuống tray hoặc thoát Desktop không dừng Host/API.
 2. Vào **Cấu hình kết nối**: đặt AE Title, IP listen của máy Agent, port DICOM, IP/Calling AE của máy chụp, thư mục lưu ảnh. Bấm **Lưu cấu hình** rồi xác thực quản trị nếu được yêu cầu; app tự cấp quyền thư mục, restart service và kết nối lại. Không cần chạy lệnh. Trên console máy chụp, đặt đích là IP LAN của Agent + port DICOM + AE Title. IP listen không phải IP của máy chụp.
 3. Web gửi request. Request hợp lệ đầu tiên sẽ gắn installation vào một `TenantName` cố định (một nha khoa/chi nhánh); app không hỏi lại tenant. Request khác tenant bị HTTP 409, kể cả đã xóa hết request hoặc restart app. Tenant đang gắn hiển thị trên UI. Không cung cấp nút đổi tenant để tránh chuyển nhầm dữ liệu.
 4. **Quản lý request**: tìm theo tên đối tượng, model, khách, mã khách, dịch vụ, resId; lọc trạng thái; bấm tên để xem detail; **Thực hiện** để mở màn hình dịch vụ và bật nhận ảnh. **Xóa request** cần xác nhận và chỉ xóa dữ liệu request; file DICOM gốc vẫn nằm trong kho local.
@@ -168,7 +168,7 @@ Controller giữ nguyên endpoint/header/body/status và CORS; JSON, tenant-bind
 
 ## Cài đặt và tự khởi động từ 0.2.2
 
-Linux: `sudo apt install ./dicom-agent_0.2.11_amd64.deb`, sau đó mở DICOM Desktop Agent từ menu. Gói có dependency `acl`, tự thêm tài khoản gọi sudo vào nhóm operator và cấp quyền UID trực tiếp, nên không cần usermod hay đăng xuất. Host ghi desktop-connection.json chứa port HTTP và khóa local; ACL readonly cho operator được kế thừa từ thư mục data. Không đổi quyền other sang đọc/ghi toàn cục, không mở quyền thư mục request/token riêng tư. Khi cài bằng root không qua sudo/polkit, quản trị có thể chỉ định DICOM_AGENT_OPERATOR_USER.
+Linux: `sudo apt install ./dicom-agent_0.2.12_amd64.deb`, sau đó mở DICOM Desktop Agent từ menu. Gói có dependency `acl`, tự thêm tài khoản gọi sudo vào nhóm operator và cấp quyền UID trực tiếp, nên không cần usermod hay đăng xuất. Host ghi desktop-connection.json chứa port HTTP và khóa local; ACL readonly cho operator được kế thừa từ thư mục data. Không đổi quyền other sang đọc/ghi toàn cục, không mở quyền thư mục request/token riêng tư. Khi cài bằng root không qua sudo/polkit, quản trị có thể chỉ định DICOM_AGENT_OPERATOR_USER.
 
 Windows: chạy Setup 0.2.5, chọn đúng tài khoản vận hành. Bộ cài cấp SID trực tiếp trên data, cài/bật service Automatic và đợi Running. Mở UI ngay, không cần làm mới group token bằng logout.
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 022
 cd "$(dirname "$0")/../.."
-version="${1:-0.2.11}"
+version="${1:-0.2.12}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Version must be major.minor.patch' >&2; exit 1; }
 [[ -x publish/linux/host/DicomAgent.Host && -x publish/linux/desktop/DicomAgent.Desktop ]] || { echo 'Run deploy/linux/publish.sh first.' >&2; exit 1; }
 mkdir -p publish/installers

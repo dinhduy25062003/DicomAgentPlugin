@@ -10,6 +10,8 @@ Sau khi cập nhật code, chạy:
 bash /home/duynguyen/Dev/DicomAgentPlugin/deploy/release.sh
 ```
 
+Dùng cùng lệnh trên cả Bash lẫn PowerShell trên Linux. Script tự tìm SDK tương thích với `global.json`, gồm bản cài ở `~/.dotnet`, rồi truyền PATH/DOTNET_ROOT cho các bước build và PowerShell con. Nếu máy thiếu SDK phù hợp, script dừng trước khi tăng version.
+
 Script tự tăng patch version, restore → build → test, publish mới và tạo hai bộ cài Linux/Windows. Nếu có lỗi, script dừng; chỉ cập nhật checksum sau khi đóng gói và kiểm tra thành công.
 
 Kết quả nằm tại:

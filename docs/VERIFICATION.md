@@ -242,3 +242,12 @@ Release một lệnh 0.2.10 hoàn tất thành công (exit 0): tạo cả Window
 ## Hướng dẫn lệnh thao tác 0.2.11 — 20/11/2026
 
 Thêm docs/LENH-RELEASE-VA-GIA-LAP.md: lệnh release tự tăng patch, nơi lấy bộ cài, cấu hình loopback và chọn request trước khi nhận, lệnh echo/generate/store gửi một ảnh thử, kết quả mong đợi và lệnh build lại simulator Linux khi cần. Kiểm tra đường dẫn script/simulator tồn tại và Markdown đóng đủ code fence. Chạy release.sh hoàn tất 0.2.11: 43 unit + 43 integration pass, cả Setup/deb đã tạo và xác minh payload/checksum. Không sửa logic ứng dụng trong lượt thêm tài liệu này.
+
+## Tự chọn SDK đúng khi release từ PowerShell 0.2.12 — 20/11/2026
+
+- Lỗi tái hiện theo môi trường người dùng: PATH PowerShell chỉ có /usr/bin:/bin, DOTNET_ROOT=/usr/lib/dotnet, hệ thống có SDK 8.0.134 trong khi global.json yêu cầu 8.0.422 (latestPatch). Máy đã có SDK phù hợp ở ~/.dotnet.
+- Thêm deploy/use-dotnet.sh và gọi trong preflight release, trước khi đổi version. Thử từng host từ PATH, DOTNET_ROOT, ~/.dotnet và vị trí hệ thống; để chính dotnet resolve global.json/rollForward. Chọn được host thì export PATH, DOTNET_ROOT, DOTNET_ROOT_X64 và DOTNET_HOST_PATH cho toàn bộ các bước con. Không đổi global.json, không hạ SDK.
+- Kiểm tra thật từ pwsh với PATH/DOTNET_ROOT hệ thống cũ: Bash và PowerShell con đều tìm đúng /home/duynguyen/.dotnet/dotnet, SDK 8.0.422. Repo tạm pin SDK không tồn tại 99.0.100: release dừng ở preflight, Directory.Build.props không thay đổi. bash -n và git diff --check pass.
+- Chạy release đầy đủ từ chính PowerShell với môi trường lỗi nêu trên: tự tăng 0.2.11→0.2.12, restore/build sạch, 43 unit + 43 integration = 86 pass. Không sửa code ứng dụng hay hợp đồng upload trong lượt sửa SDK này.
+
+Release 0.2.12 từ PowerShell với PATH hệ thống cũ hoàn tất exit 0: cả Windows Setup và Linux deb tạo thành công, trích xuất đối chiếu publish/md5sums pass, SHA256SUMS cập nhật. Lệnh người dùng vẫn là bash deploy/release.sh; không cần export PATH thủ công.
