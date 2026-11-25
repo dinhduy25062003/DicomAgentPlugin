@@ -7,6 +7,8 @@
     <conv:StatusPillBackgroundConverter x:Key="StatusPillBg" />
     <conv:TabVisibilityConverter x:Key="TabVis" />
     <conv:StatusDotConverter x:Key="StatusDot" />
+    <conv:StatusTextConverter x:Key="StatusText" />
+    <conv:CaptureMessageConverter x:Key="CaptureMessage" />
     <conv:MessageVisibilityConverter x:Key="MessageVis" />
   </Window.Resources>
   <Window.Styles>
@@ -116,11 +118,9 @@
         <StackPanel>
           <StackPanel IsVisible="{Binding SelectedTab, Converter={StaticResource TabVis}, ConverterParameter=0}">
             <TextBlock Text="Quản lý yêu cầu" Classes="h1" />
-            <TextBlock Text="Yêu cầu tạo từ trang web SaaS sẽ tự xuất hiện trong danh sách." Classes="muted" Margin="0,4,0,0" />
           </StackPanel>
           <StackPanel IsVisible="{Binding SelectedTab, Converter={StaticResource TabVis}, ConverterParameter=1}">
             <TextBlock Text="Thực hiện dịch vụ" Classes="h1" />
-            <TextBlock Text="Kiểm tra bệnh nhân, nhận ảnh DICOM và gửi lên SaaS." Classes="muted" Margin="0,4,0,0" />
           </StackPanel>
           <StackPanel IsVisible="{Binding SelectedTab, Converter={StaticResource TabVis}, ConverterParameter=2}">
             <TextBlock Text="Cấu hình kết nối" Classes="h1" />
@@ -130,7 +130,7 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="7">
             <Ellipse Width="9" Height="9" Fill="{Binding Status, Converter={StaticResource StatusDot}}" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding Status}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Status, Converter={StaticResource StatusText}}" FontSize="13" FontWeight="Medium" VerticalAlignment="Center" />
           </StackPanel>
           <Border Classes="pill" BorderBrush="{DynamicResource Brush.Border}" Background="{DynamicResource Brush.Tint}" MaxWidth="300">
             <TextBlock Text="{Binding TenantName}" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource Brush.Primary}" TextTrimming="CharacterEllipsis" />
@@ -146,7 +146,7 @@
           <Grid ColumnDefinitions="*,230">
             <TextBox Watermark="Tìm đối tượng, khách hàng, dịch vụ, mã…" Text="{Binding Search}" />
             <ComboBox Grid.Column="1" SelectedIndex="{Binding FilterIndex}" Margin="12,0,0,0" HorizontalAlignment="Stretch">
-              <ComboBoxItem Content="Tất cả trạng thái" /><ComboBoxItem Content="new — mới nhận" /><ComboBoxItem Content="done — đã gửi" /><ComboBoxItem Content="uploading — đang gửi" /><ComboBoxItem Content="review — cần kiểm tra" />
+              <ComboBoxItem Content="Tất cả trạng thái" /><ComboBoxItem Content="Mới nhận" /><ComboBoxItem Content="Đã gửi ảnh" /><ComboBoxItem Content="Đang gửi ảnh" /><ComboBoxItem Content="Cần kiểm tra" />
             </ComboBox>
           </Grid>
           <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,14,0,0">
@@ -178,7 +178,7 @@
                             <Binding Path="ActualThemeVariant" RelativeSource="{RelativeSource AncestorType=Window}" />
                           </MultiBinding>
                         </Border.BorderBrush>
-                        <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold">
+                        <TextBlock Text="{Binding Status, Converter={StaticResource StatusText}}" FontSize="12" FontWeight="SemiBold">
                           <TextBlock.Foreground>
                             <MultiBinding Converter="{StaticResource StatusBrush}">
                               <Binding Path="Status" />
@@ -219,7 +219,7 @@
                 <TextBlock Text="{Binding CurrentRequest.Info.EntityName}" Classes="h2" Foreground="{DynamicResource Brush.Primary}" />
                 <TextBlock Text="{Binding CurrentRequest.Info.PartnerName, StringFormat='Khách hàng: {0}'}" FontSize="15" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding CurrentRequest.Info.ServiceName, StringFormat='Dịch vụ: {0}'}" />
-                <TextBlock Text="{Binding CurrentRequest.Info.ModelName, StringFormat='Model: {0}'}" Classes="muted" FontSize="13" />
+                <TextBlock Text="{Binding CurrentRequest.Info.ModelName, StringFormat='Đối tượng: {0}'}" Classes="muted" FontSize="13" />
               </StackPanel>
               <StackPanel Grid.Column="1" Spacing="5">
                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -237,7 +237,7 @@
                         <Binding Path="ActualThemeVariant" RelativeSource="{RelativeSource AncestorType=Window}" />
                       </MultiBinding>
                     </Border.BorderBrush>
-                    <TextBlock Text="{Binding CurrentRequest.Status}" FontSize="12" FontWeight="SemiBold">
+                    <TextBlock Text="{Binding CurrentRequest.Status, Converter={StaticResource StatusText}}" FontSize="12" FontWeight="SemiBold">
                       <TextBlock.Foreground>
                         <MultiBinding Converter="{StaticResource StatusBrush}">
                           <Binding Path="CurrentRequest.Status" />
@@ -247,9 +247,6 @@
                     </TextBlock>
                   </Border>
                 </StackPanel>
-                <TextBlock Text="{Binding CurrentRequest.Info.PartnerId, StringFormat='PartnerId: {0}'}" Classes="caption" />
-                <TextBlock Text="{Binding CurrentRequest.Info.ResModel, StringFormat='resModel: {0}'}" Classes="caption" />
-                <TextBlock Text="{Binding CurrentRequest.Info.ResId, StringFormat='resId: {0}'}" Classes="caption" />
               </StackPanel>
             </Grid>
           </Border>
@@ -263,7 +260,7 @@
             <TextBlock Text="{Binding CaptureNotice}" Foreground="{DynamicResource Brush.Primary}" FontSize="13" />
             <WrapPanel>
               <Button Classes="primary" Content="Thực hiện / Nhận ảnh" Command="{Binding StartCaptureCommand}" IsEnabled="{Binding IsEditable}" Margin="0,0,8,8" />
-              <Button Content="Dừng nhận cho ca" Command="{Binding StopCaptureCommand}" Margin="0,0,8,8" />
+              <Button Content="Dừng nhận cho ca" Command="{Binding StopCaptureCommand}" IsEnabled="{Binding CanStopCapture}" Margin="0,0,8,8" />
               <Button Content="Chọn file DICOM…" Click="ImportDicomFiles" IsEnabled="{Binding IsEditable}" Margin="0,0,8,8" />
               <Button Content="Chọn thư mục…" Click="ImportDicomFolder" IsEnabled="{Binding IsEditable}" Margin="0,0,8,8" />
             </WrapPanel>
@@ -300,9 +297,9 @@
             </Border>
           </Grid>
           <StackPanel Grid.Row="3" Spacing="10" Margin="0,12,0,14">
-            <TextBlock Text="{Binding CurrentRequest.LastError}" Foreground="{DynamicResource Brush.Danger}" IsVisible="{Binding HasCurrentRequest}" />
+            <TextBlock Text="{Binding CurrentRequest.LastError, Converter={StaticResource CaptureMessage}}" Foreground="{DynamicResource Brush.Danger}" IsVisible="{Binding HasCurrentRequest}" />
             <StackPanel IsVisible="{Binding IsReview}" Spacing="6">
-              <TextBlock Text="Kết quả upload chưa chắc chắn. Mở SaaS kiểm tra đủ file trước khi chọn một trong hai thao tác sau." Foreground="{DynamicResource Brush.Warning}" />
+              <TextBlock Text="Kết quả gửi ảnh chưa chắc chắn. Mở SaaS kiểm tra đủ ảnh trước khi chọn một trong hai thao tác sau." Foreground="{DynamicResource Brush.Warning}" />
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Classes="primary" Content="Đã kiểm tra: đủ ảnh trên SaaS" Click="ConfirmUploaded" />
                 <Button Content="Đã kiểm tra: chưa có ảnh, cho thử lại" Click="AllowRetry" />
@@ -310,7 +307,7 @@
             </StackPanel>
             <Grid ColumnDefinitions="*,Auto">
               <CheckBox Content="Tôi đã đối chiếu đúng khách hàng, ca chụp và tất cả ảnh trong danh sách." IsChecked="{Binding Verified}" IsEnabled="{Binding IsEditable}" VerticalAlignment="Center" />
-              <Button Grid.Column="1" Classes="primary" Content="Done — Gửi lên SaaS" Command="{Binding DoneCommand}" IsEnabled="{Binding IsEditable}" Padding="20,10" />
+              <Button Grid.Column="1" Classes="primary" Content="Hoàn tất — Gửi ảnh lên SaaS" Command="{Binding DoneCommand}" IsEnabled="{Binding IsEditable}" Padding="20,10" />
             </Grid>
           </StackPanel>
         </Grid>
@@ -321,7 +318,7 @@
             <Border Classes="card">
               <StackPanel Spacing="4">
                 <TextBlock Text="Trạng thái dịch vụ và kết nối" Classes="section" />
-                <TextBlock Text="{Binding Status}" Foreground="{DynamicResource Brush.Primary}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Status, Converter={StaticResource StatusText}}" Foreground="{DynamicResource Brush.Primary}" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="13" />
                 <Expander Header="Lỗi gần đây (UTC)" Margin="0,6,0,0">
                   <TextBox Text="{Binding Errors}" IsReadOnly="True" AcceptsReturn="True" Height="110" FontSize="12" Margin="0,4,0,0" />
@@ -371,7 +368,6 @@
                 <TextBlock Text="Kết nối web / SaaS" Classes="section" />
                 <TextBlock Text="{Binding TenantName, StringFormat='Tenant cố định: {0}'}" Foreground="{DynamicResource Brush.Primary}" FontWeight="SemiBold" />
                 <TextBlock Text="Port local API (chỉ 127.0.0.1)" Classes="label" /><TextBox Text="{Binding LocalPort}" />
-                <TextBlock Text="URL API SaaS" Classes="label" /><TextBox Text="{Binding SaasUrl}" />
                 <TextBlock Text="{Binding TenantName, StringFormat='{}{0} trong URL lấy từ request đầu tiên của installation.'}" Classes="helper" />
                 <Expander Header="Origin web bổ sung được phép gọi local" Margin="0,6,0,0">
                   <StackPanel>

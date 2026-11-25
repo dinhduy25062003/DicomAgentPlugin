@@ -1,5 +1,5 @@
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.12',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.2.15',
     [string]$MakeNsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
     [switch]$SkipPublish
 )

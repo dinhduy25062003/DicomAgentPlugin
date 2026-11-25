@@ -4,7 +4,7 @@ Từ 0.2.2: cài xong mở UI dùng ngay, không cần đăng xuất để nhậ
 
 Gói cài đặt **Windows Setup.exe** và **Ubuntu/Debian .deb**: xem [PACKAGES.md](docs/PACKAGES.md).
 
-Bản **0.2.12** thêm **Lưu và áp dụng tự động**: chọn thư mục ảnh, bấm Lưu cấu hình, xác thực quản trị nếu được yêu cầu; app tự cấp quyền thư mục và khởi động lại service, không cần chạy lệnh. App hỗ trợ giao diện sáng và tối tông xanh dương: chọn tại **Cấu hình kết nối → Giao diện Desktop → Chủ đề màu**, áp dụng ngay và ghi nhớ riêng cho tài khoản hiện tại; bản 0.2.4 tổ chức lại code cho dễ đọc, dễ debug; chặn tạo trùng request `new` theo `resModel + resId + PartnerId` trong storage, vẫn cho tạo mới khi ca cũ đã `done`; nhận request từ web trên cùng máy qua `http://127.0.0.1:17890`, cố định tenant từ request đầu tiên, lưu ca trong JSON, nhận/chọn DICOM và gửi multipart lên SaaS khi bấm Done. Ba màn hình: quản lý request, thực hiện dịch vụ (có preview frame đầu tiên), cấu hình kết nối. [Hướng dẫn và hợp đồng web → local → SaaS](docs/LOCALHOST-WEB-SAAS.md). Bộ nhận DICOM/lưu ảnh vẫn hoạt động khi không có Internet; không tự chuyển JPEG/PNG.
+Bản **0.2.15** thêm **Lưu và áp dụng tự động**: chọn thư mục ảnh, bấm Lưu cấu hình, xác thực quản trị nếu được yêu cầu; app tự cấp quyền thư mục và khởi động lại service, không cần chạy lệnh. App hỗ trợ giao diện sáng và tối tông xanh dương: chọn tại **Cấu hình kết nối → Giao diện Desktop → Chủ đề màu**, áp dụng ngay và ghi nhớ riêng cho tài khoản hiện tại; bản 0.2.4 tổ chức lại code cho dễ đọc, dễ debug; chặn tạo trùng request `new` theo `resModel + resId + PartnerId` trong storage, vẫn cho tạo mới khi ca cũ đã `done`; nhận request từ web trên cùng máy qua `http://127.0.0.1:17890`, cố định tenant từ request đầu tiên, lưu ca trong JSON, nhận/chọn DICOM và gửi multipart lên SaaS khi bấm Done. Ba màn hình: quản lý request, thực hiện dịch vụ (có preview frame đầu tiên), cấu hình kết nối. [Hướng dẫn và hợp đồng web → local → SaaS](docs/LOCALHOST-WEB-SAAS.md). Bộ nhận DICOM/lưu ảnh vẫn hoạt động khi không có Internet; không tự chuyển JPEG/PNG.
 
 ## Kiến trúc
 
@@ -161,7 +161,7 @@ Web và Desktop đều gọi HTTP tại `127.0.0.1:17890`; không có Unix socke
 
 ## Cài Windows
 
-Setup Windows 0.2.12 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
+Setup Windows 0.2.15 tự cài SCU vào `%SystemDrive%\DicomSimulator` (thường `C:\DicomSimulator`). Desktop không mở terminal; bấm X ẩn xuống tray, menu Open mở lại và Exit desktop thoát giao diện. Trước nâng cấp, chọn Exit desktop thay vì chỉ bấm X. Chi tiết kiểm thử: [Windows](docs/HUONG-DAN-WINDOWS.md).
 
 
 PowerShell tại root repository:

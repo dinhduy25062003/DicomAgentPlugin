@@ -41,7 +41,9 @@ public sealed class DesktopTests
             Assert.Contains(window.GetLogicalDescendants().OfType<TextBlock>(), x => x.Text == "Quản lý yêu cầu");
             vm.Status = "Running";
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-            Assert.Contains(window.GetLogicalDescendants().OfType<TextBlock>(), x => x.Text == "Running");
+            Assert.Contains(window.GetLogicalDescendants().OfType<TextBlock>(), x => x.Text == "Đang chạy");
+            Assert.DoesNotContain(window.GetLogicalDescendants().OfType<TextBlock>(), x => x.Text == "Running");
+            Assert.Equal("Running", vm.Status);
 
             using var icon = AssetLoader.Open(new Uri("avares://DicomAgent.Desktop/Assets/dicom-agent.ico"));
             Assert.NotNull(new WindowIcon(icon));
@@ -53,6 +55,36 @@ public sealed class DesktopTests
             var request = new CaptureRequest(Guid.NewGuid(), "demo1", new("crm.service", Guid.NewGuid(), "Phiếu chụp Panorama", "Điều trị", "Chụp X-quang Panorama", "KH-001", "Khách thử nghiệm"), DateTime.UtcNow, "new", []);
             vm.TenantName = "demo1";
             vm.Status = "Running";
+            vm.Requests.Add(request);
+            vm.ViewRequest(request);
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            var stopCapture = window.GetLogicalDescendants().OfType<Button>()
+                .Single(button => button.Content as string == "Dừng nhận cho ca");
+            Assert.False(stopCapture.IsEnabled);
+
+            var statusFilter = window.GetLogicalDescendants().OfType<ComboBox>()
+                .Single(combo => combo.Items.Count == 5);
+            Assert.Equal(new[] { "Tất cả trạng thái", "Mới nhận", "Đã gửi ảnh", "Đang gửi ảnh", "Cần kiểm tra" },
+                statusFilter.Items.Cast<ComboBoxItem>().Select(item => item.Content as string));
+            foreach (var (code, label) in new[]
+            {
+                ("new", "Mới nhận"), ("uploading", "Đang gửi ảnh"),
+                ("done", "Đã gửi ảnh"), ("review", "Cần kiểm tra")
+            })
+            {
+                var localizedRequest = request with { Status = code };
+                vm.Requests.Clear();
+                vm.Requests.Add(localizedRequest);
+                vm.ViewRequest(localizedRequest);
+                foreach (var tab in new[] { 0, 1 })
+                {
+                    vm.SelectedTab = tab;
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == label && text.IsEffectivelyVisible);
+                }
+                Assert.Equal(code, vm.CurrentRequest!.Status);
+            }
+            vm.Requests.Clear();
             vm.Requests.Add(request);
             vm.ViewRequest(request);
 
@@ -92,7 +124,7 @@ public sealed class DesktopTests
                 vm.SelectedTab = 0;
                 window.MouseMove(new Point(250, 10));
                 Avalonia.Threading.Dispatcher.UIThread.RunJobs();
-                var status = window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == "new");
+                var status = window.GetVisualDescendants().OfType<TextBlock>().First(text => text.Text == "Mới nhận");
                 Assert.Equal(Color.Parse(themeIndex == 0 ? "#A66A12" : "#F3CC79"), BrushColor(status.Foreground));
                 Assert.Equal(Color.Parse(themeIndex == 0 ? "#FBF3DE" : "#3B3020"), BrushColor(((Border)status.Parent!).Background));
                 var primary = window.GetVisualDescendants().OfType<Button>()

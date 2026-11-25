@@ -41,7 +41,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     public bool OpenAtLogin { get => openAtLogin; set => Set(ref openAtLogin, value); }
     public ICommand SaveStartupCommand { get; }
     private AgentSettings? loaded;
-    private string message = "Open the Host service, then refresh.";
+    private string message = "Khởi động dịch vụ DicomAgent, sau đó bấm Làm mới.";
     private string status = "Disconnected";
     private string summary = "";
     private string errors = "";
@@ -104,20 +104,20 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
             History.Clear();
             foreach (var item in history.History!) History.Add(item);
             Message = response.Status!.RestartRequired
-                ? "Settings saved. Restart the operating system service to apply changes."
-                : history.Error ?? "Connected. Showing up to 100 recent files.";
+                ? "Đã lưu cấu hình. Khởi động lại dịch vụ để áp dụng thay đổi."
+                : history.Error ?? "Đã kết nối. Hiển thị tối đa 100 tệp gần đây.";
         }
         catch (Exception ex)
         {
             Status = "Error / Disconnected";
-            Message = "Cannot read Host state. " + ex.Message;
+            Message = "Không đọc được trạng thái dịch vụ. " + ex.Message;
         }
     }
 
     private void ApplyStatus(AgentStatus status)
     {
         Status = status.State;
-        Summary = $"AE: {status.ActiveConfiguration.AeTitle}   |   {status.ActiveConfiguration.ListenAddress}:{status.ActiveConfiguration.Port}\nStorage: {status.ActiveConfiguration.StoragePath}\nReceived: {status.TotalReceivedFiles}   |   Last (UTC): {status.LastReceivedAtUtc:O}";
+        Summary = $"AE: {status.ActiveConfiguration.AeTitle}   |   {status.ActiveConfiguration.ListenAddress}:{status.ActiveConfiguration.Port}\nThư mục lưu ảnh: {status.ActiveConfiguration.StoragePath}\nĐã nhận: {status.TotalReceivedFiles}   |   Lần nhận gần nhất (UTC): {status.LastReceivedAtUtc:O}";
         Errors = string.Join(Environment.NewLine, status.RecentErrors);
     }
 
@@ -141,7 +141,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private AgentSettings ReadSettings()
     {
         if (!int.TryParse(Port, out var p) || !int.TryParse(MaxAssociations, out var max) || !long.TryParse(MaxBytes, out var bytes))
-            throw new ArgumentException("Port, association limit and byte limit must be numbers.");
+            throw new ArgumentException("Cổng, số kết nối tối đa và giới hạn dung lượng phải là số.");
         return new(new DicomOptions
         {
             AeTitle = AeTitle,
@@ -159,7 +159,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     private static string[] Split(string text) => text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     private void Validate()
     {
-        try { var errors = ConfigurationRules.Validate(ReadSettings().Dicom); Message = errors.Length == 0 ? "Settings are valid. Host will also check storage write access on save." : string.Join(" ", errors); }
+        try { var errors = ConfigurationRules.Validate(ReadSettings().Dicom); Message = errors.Length == 0 ? "Cấu hình hợp lệ. Dịch vụ sẽ kiểm tra thêm quyền ghi thư mục ảnh khi lưu." : string.Join(" ", errors); }
         catch (ArgumentException ex) { Message = ex.Message; }
     }
     private async Task SaveAsync()

@@ -7,7 +7,7 @@ Tài liệu dành cho Windows x64, bao gồm Windows chạy trong máy ảo. Age
 
 ## 1. Chuẩn bị
 
-- Gói `DicomAgent-0.2.12-win-x64-Setup.exe` từ `publish/installers` của máy build.
+- Gói `DicomAgent-0.2.15-win-x64-Setup.exe` từ `publish/installers` của máy build.
 - Tài khoản quản trị để cài service; tài khoản Windows của người vận hành để mở ứng dụng.
 - Setup 0.1.1 tự tạo `%SystemDrive%\DicomSimulator` (thường là `C:\DicomSimulator`) và cài đủ SCU. Không cần build/copy SCU riêng.
 - Bản self-contained không cần .NET Runtime trên máy Windows nhận gói. Máy build cần .NET SDK theo `global.json` (hiện tại 8.0.422).

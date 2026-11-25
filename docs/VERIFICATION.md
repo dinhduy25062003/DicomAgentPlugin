@@ -1,5 +1,22 @@
 # Báo cáo triển khai và kiểm chứng
 
+## Việt hóa trạng thái và sửa lỗi release 0.2.15 — 25/11/2026
+
+- Tái hiện lỗi release 0.2.14: 43 unit PASS, integration có 1 FAIL tại `DesktopTests.HeadlessWindowLoadsRequestsCaptureSettingsAndStatusBinding`, do test tìm `Running` sau khi giao diện đã đổi thành `Đang chạy`; test màu trạng thái cũng còn tìm `new`.
+- Cập nhật test theo nhãn tiếng Việt và giữ kiểm tra màu sáng/tối. Headless test kiểm tra cả danh sách/chi tiết ca cho bốn trạng thái, nhãn bộ lọc và mã trạng thái gốc không đổi. Test converter kiểm tra trạng thái dịch vụ, trạng thái không xác định và thông báo kết quả gửi ảnh có mã HTTP/hướng dẫn xử lý.
+- Desktop chỉ dịch phần hiển thị; trạng thái API/JSON, bộ lọc theo mã, màu trạng thái, quy tắc nhận ảnh và gửi ảnh giữ nguyên. Thông báo chẩn đoán chưa có bản dịch được giữ nguyên để không suy diễn sai lỗi.
+- PASS: chạy đúng `bash /home/duynguyen/Dev/DicomAgentPlugin/deploy/release.sh`, SDK 8.0.422, build Release 0 warning/0 error, 43 unit + 63 integration test. Script tự tăng version từ 0.2.14 lên 0.2.15 và tiếp tục đóng gói sau test.
+- PASS: release hoàn tất exit 0; publish mới Windows/Linux, tạo `DicomAgent-0.2.15-win-x64-Setup.exe` và `dicom-agent_0.2.15_amd64.deb`, trích xuất đối chiếu payload, kiểm tra Debian md5sums và cập nhật `publish/installers/SHA256SUMS`.
+- NOT RUN: cài/nâng cấp và thao tác Desktop native trên Windows/Linux trong phiên này.
+
+## Điều kiện dừng nhận cho ca 0.2.13 — 25/11/2026
+
+- Tab Thực hiện dịch vụ chỉ bật **Dừng nhận cho ca** khi ca đang xem có trạng thái `new`, trùng ca đang nhận trong snapshot Host và Desktop không đang xử lý thao tác. Command cũng kiểm tra điều kiện trước khi gửi `capture-stop`.
+- Test hồi quy qua HTTP localhost: chưa chọn/chưa nhận thì khóa; bật nhận ca A thì cho dừng; xem ca B không dừng được A; khóa khi đang dừng; sau dừng thì khóa; cập nhật đúng khi Host chuyển ca hoặc xóa ca đang xem. Headless test kiểm tra binding nút bị khóa khi ca chưa bật nhận.
+- PASS: SDK 8.0.422, build Release 0 warning/0 error, 43 unit + 44 integration test. Test chạy ngoài sandbox để dùng TCP loopback.
+- PASS: bộ cài Windows/Linux được publish mới từ source 0.2.13; trích xuất đối chiếu payload với publish và kiểm tra Debian md5sums thành công, SHA-256 cập nhật tại `publish/installers/SHA256SUMS`.
+- NOT RUN: cài/nâng cấp và thao tác Desktop native trên Windows/Linux trong phiên này.
+
 ## Cập nhật Windows 0.1.1 — 10/11/2026
 
 - Publish Windows self-contained cho Host, Desktop và SCU thành công. Setup đóng kèm SCU; script cài vào `%SystemDrive%\DicomSimulator`, giữ nguyên dữ liệu/configuration hiện hữu.
